@@ -5,11 +5,11 @@ plugins {
 }
 
 android {
-    namespace = "com.example.myapplication"
+    namespace = "com.mayconlimasan.calcdroid"
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.example.myapplication"
+        applicationId = "com.mayconlimasan.calcdroid"
         minSdk = 24
         targetSdk = 35
         versionCode = 1

@@ -1,4 +1,4 @@
-package com.example.myapplication
+package com.mayconlimasan.calcdroid
 
 import android.os.Bundle
 import android.os.Parcel
@@ -35,7 +35,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.myapplication.ui.theme.MyApplicationTheme
+import com.mayconlimasan.calcdroid.ui.theme.CalcDroidTheme
 
 class MainActivity() : ComponentActivity(), Parcelable {
     constructor(parcel: Parcel) : this() {
@@ -44,7 +44,7 @@ class MainActivity() : ComponentActivity(), Parcelable {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            MyApplicationTheme {
+            CalcDroidTheme {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
