@@ -1,11 +1,18 @@
 name: Release
 
 # Ao criar uma tag v* (ex.: v1.0), compila o APK de release e anexa o
-# arquivo na Release do GitHub para download.
+# arquivo na Release do GitHub para download. Também pode ser disparado
+# manualmente (aba Actions > Release > Run workflow) informando a tag,
+# que é criada junto com a release.
 on:
   push:
     tags:
       - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag da release (ex.: v1.0)"
+        required: true
 
 permissions:
   contents: write
@@ -54,12 +61,15 @@ jobs:
         run: ./gradlew assembleRelease
 
       - name: Preparar artefato
+        env:
+          RELEASE_TAG: ${{ github.event.inputs.tag || github.ref_name }}
         run: |
           APK=$(ls app/build/outputs/apk/release/app-release*.apk | head -n1)
-          cp "$APK" "CalcDroid-${GITHUB_REF_NAME}.apk"
+          cp "$APK" "CalcDroid-${RELEASE_TAG}.apk"
 
       - name: Publicar na Release do GitHub
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ github.event.inputs.tag || github.ref_name }}
           files: CalcDroid-*.apk
           generate_release_notes: true
