@@ -58,6 +58,33 @@ O AAB assinado fica em `app/build/outputs/bundle/release/app-release.aab`.
 4. A cada nova versão, incremente `versionCode` (e ajuste `versionName`) em
    `app/build.gradle.kts` antes de gerar o AAB.
 
+## Release no GitHub (APK para download)
+
+O workflow [`release.yml`](.github/workflows/release.yml) compila o APK de
+release e o anexa automaticamente na Release do GitHub sempre que uma tag
+`v*` é criada:
+
+```bash
+git tag v1.0
+git push origin v1.0
+```
+
+O APK aparece em **Releases** como `CalcDroid-v1.0.apk`.
+
+Para que o APK saia **assinado** (instalável), configure estes secrets no
+repositório (*Settings → Secrets and variables → Actions*):
+
+| Secret              | Conteúdo                                            |
+| ------------------- | --------------------------------------------------- |
+| `KEYSTORE_BASE64`   | keystore em base64: `base64 -w0 calcdroid-upload.jks` |
+| `KEYSTORE_PASSWORD` | senha do keystore                                   |
+| `KEY_ALIAS`         | alias da chave (ex.: `calcdroid-upload`)            |
+| `KEY_PASSWORD`      | senha da chave                                      |
+
+Sem os secrets, o workflow ainda roda, mas gera um APK sem assinatura.
+Lembre de incrementar `versionCode`/`versionName` em `app/build.gradle.kts`
+antes de criar a tag.
+
 ## Ícone do app
 
 Todos os assets do ícone (drawables vetoriais do adaptive icon, PNGs legados

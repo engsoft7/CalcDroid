@@ -1,0 +1,65 @@
+name: Release
+
+# Ao criar uma tag v* (ex.: v1.0), compila o APK de release e anexa o
+# arquivo na Release do GitHub para download.
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configurar JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Configurar Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      # A assinatura usa os secrets do repositório (Settings > Secrets and
+      # variables > Actions):
+      #   KEYSTORE_BASE64   - keystore .jks codificado em base64
+      #                       (base64 -w0 calcdroid-upload.jks)
+      #   KEYSTORE_PASSWORD - senha do keystore
+      #   KEY_ALIAS         - alias da chave (ex.: calcdroid-upload)
+      #   KEY_PASSWORD      - senha da chave
+      # Sem os secrets, o APK é gerado sem assinatura (não instalável).
+      - name: Restaurar keystore de assinatura
+        if: ${{ secrets.KEYSTORE_BASE64 != '' }}
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          echo "$KEYSTORE_BASE64" | base64 -d > calcdroid-upload.jks
+          cat > keystore.properties <<EOF
+          storeFile=calcdroid-upload.jks
+          storePassword=$KEYSTORE_PASSWORD
+          keyAlias=$KEY_ALIAS
+          keyPassword=$KEY_PASSWORD
+          EOF
+
+      - name: Compilar APK de release
+        run: ./gradlew assembleRelease
+
+      - name: Preparar artefato
+        run: |
+          APK=$(ls app/build/outputs/apk/release/app-release*.apk | head -n1)
+          cp "$APK" "CalcDroid-${GITHUB_REF_NAME}.apk"
+
+      - name: Publicar na Release do GitHub
+        uses: softprops/action-gh-release@v2
+        with:
+          files: CalcDroid-*.apk
+          generate_release_notes: true
