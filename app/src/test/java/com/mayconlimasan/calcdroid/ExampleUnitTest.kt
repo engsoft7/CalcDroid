@@ -1,4 +1,4 @@
-package com.example.myapplication
+package com.mayconlimasan.calcdroid
 
 import org.junit.Test
 
