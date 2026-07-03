@@ -1,4 +1,4 @@
-package com.mayconlimasan.calcdroid
+package io.github.engsoft7.calcdroid
 
 import android.os.Bundle
 import android.os.Parcel
@@ -35,7 +35,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.mayconlimasan.calcdroid.ui.theme.CalcDroidTheme
+import io.github.engsoft7.calcdroid.ui.theme.CalcDroidTheme
 
 class MainActivity() : ComponentActivity(), Parcelable {
     constructor(parcel: Parcel) : this() {

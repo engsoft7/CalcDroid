@@ -1,4 +1,4 @@
-package com.mayconlimasan.calcdroid.ui.theme
+package io.github.engsoft7.calcdroid.ui.theme
 
 import android.app.Activity
 import android.os.Build

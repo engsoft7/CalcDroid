@@ -1,4 +1,4 @@
-package com.mayconlimasan.calcdroid
+package io.github.engsoft7.calcdroid
 
 import org.junit.Test
 
