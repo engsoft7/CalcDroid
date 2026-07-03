@@ -33,27 +33,29 @@ jobs:
       - name: Configurar Gradle
         uses: gradle/actions/setup-gradle@v4
 
-      # A assinatura usa os secrets do repositório (Settings > Secrets and
-      # variables > Actions):
-      #   KEYSTORE_BASE64   - keystore .jks codificado em base64
-      #                       (base64 -w0 calcdroid-upload.jks)
-      #   KEYSTORE_PASSWORD - senha do keystore
+      # O keystore fica criptografado no repositório em
+      # .github/calcdroid-upload.jks.enc (AES-256) e é descriptografado com
+      # os secrets do repositório (Settings > Secrets and variables > Actions):
+      #   KEYSTORE_PASSWORD - senha do keystore (também descriptografa o .enc)
       #   KEY_ALIAS         - alias da chave (ex.: calcdroid-upload)
       #   KEY_PASSWORD      - senha da chave
       # Sem os secrets, o APK é gerado sem assinatura (não instalável).
       - name: Restaurar keystore de assinatura
         env:
-          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
-          if [ -z "$KEYSTORE_BASE64" ]; then
+          if [ -z "$KEYSTORE_PASSWORD" ]; then
             echo "::warning::Secrets do keystore ausentes; o APK sairá sem assinatura."
             exit 0
           fi
-          # Tolera espaços, quebras de linha e caracteres estranhos no secret.
-          printf '%s' "$KEYSTORE_BASE64" | tr -d ' \t\r\n' | base64 -d -i > calcdroid-upload.jks
+          if ! openssl enc -d -aes-256-cbc -pbkdf2 \
+              -in .github/calcdroid-upload.jks.enc -out calcdroid-upload.jks \
+              -pass env:KEYSTORE_PASSWORD; then
+            echo "::error::Falha ao descriptografar o keystore; confira o secret KEYSTORE_PASSWORD."
+            exit 1
+          fi
           # Falha cedo, com mensagem clara, se o keystore ou as senhas estiverem errados.
           if ! keytool -list -keystore calcdroid-upload.jks \
               -storepass "$KEYSTORE_PASSWORD" -alias "$KEY_ALIAS" > /dev/null; then

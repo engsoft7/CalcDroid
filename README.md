@@ -74,15 +74,23 @@ git push origin v1.0
 O APK aparece em **[Releases](https://github.com/engsoft7/CalcDroid/releases)**
 como `CalcDroid-v1.0.apk`.
 
-Para que o APK saia **assinado** (instalável), configure estes secrets no
-repositório (*Settings → Secrets and variables → Actions*):
+O keystore de assinatura fica **criptografado** (AES-256) no repositório, em
+`.github/calcdroid-upload.jks.enc`. Para que o APK saia **assinado**
+(instalável), configure estes secrets no repositório
+(*Settings → Secrets and variables → Actions*):
 
-| Secret              | Conteúdo                                            |
-| ------------------- | --------------------------------------------------- |
-| `KEYSTORE_BASE64`   | keystore em base64: `base64 -w0 calcdroid-upload.jks` |
-| `KEYSTORE_PASSWORD` | senha do keystore                                   |
-| `KEY_ALIAS`         | alias da chave (ex.: `calcdroid-upload`)            |
-| `KEY_PASSWORD`      | senha da chave                                      |
+| Secret              | Conteúdo                                              |
+| ------------------- | ----------------------------------------------------- |
+| `KEYSTORE_PASSWORD` | senha do keystore (também descriptografa o `.enc`)    |
+| `KEY_ALIAS`         | alias da chave (ex.: `calcdroid-upload`)              |
+| `KEY_PASSWORD`      | senha da chave                                        |
+
+Para trocar o keystore, criptografe o novo `.jks` com:
+
+```bash
+openssl enc -aes-256-cbc -pbkdf2 -salt -in calcdroid-upload.jks \
+  -out .github/calcdroid-upload.jks.enc -pass pass:SUA_SENHA
+```
 
 Sem os secrets, o workflow ainda roda, mas gera um APK sem assinatura.
 Lembre de incrementar `versionCode`/`versionName` em `app/build.gradle.kts`
