@@ -58,6 +58,18 @@ O AAB assinado fica em `app/build/outputs/bundle/release/app-release.aab`.
 4. A cada nova versão, incremente `versionCode` (e ajuste `versionName`) em
    `app/build.gradle.kts` antes de gerar o AAB.
 
+## Ícone do app
+
+Todos os assets do ícone (drawables vetoriais do adaptive icon, PNGs legados
+por densidade e o ícone 512×512 da ficha da Play Store) são gerados a partir
+de `tools/generate_launcher_icon.py`. Para alterar o ícone, edite a paleta ou
+a geometria no script e rode:
+
+```bash
+pip install Pillow
+python3 tools/generate_launcher_icon.py
+```
+
 ## Licença
 
 Distribuído sob a licença [MIT](LICENSE).
