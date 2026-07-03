@@ -52,7 +52,14 @@ jobs:
             echo "::warning::Secrets do keystore ausentes; o APK sairá sem assinatura."
             exit 0
           fi
-          echo "$KEYSTORE_BASE64" | base64 -d > calcdroid-upload.jks
+          # Tolera espaços e quebras de linha colados junto com o secret.
+          printf '%s' "$KEYSTORE_BASE64" | tr -d ' \t\r\n' | base64 -d > calcdroid-upload.jks
+          # Falha cedo, com mensagem clara, se o keystore ou as senhas estiverem errados.
+          if ! keytool -list -keystore calcdroid-upload.jks \
+              -storepass "$KEYSTORE_PASSWORD" -alias "$KEY_ALIAS" > /dev/null; then
+            echo "::error::Keystore ou senhas inválidos; confira os secrets KEYSTORE_*."
+            exit 1
+          fi
           cat > keystore.properties <<EOF
           storeFile=calcdroid-upload.jks
           storePassword=$KEYSTORE_PASSWORD
