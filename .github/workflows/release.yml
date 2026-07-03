@@ -42,13 +42,16 @@ jobs:
       #   KEY_PASSWORD      - senha da chave
       # Sem os secrets, o APK é gerado sem assinatura (não instalável).
       - name: Restaurar keystore de assinatura
-        if: ${{ secrets.KEYSTORE_BASE64 != '' }}
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
+          if [ -z "$KEYSTORE_BASE64" ]; then
+            echo "::warning::Secrets do keystore ausentes; o APK sairá sem assinatura."
+            exit 0
+          fi
           echo "$KEYSTORE_BASE64" | base64 -d > calcdroid-upload.jks
           cat > keystore.properties <<EOF
           storeFile=calcdroid-upload.jks
