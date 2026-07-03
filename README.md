@@ -2,6 +2,8 @@
 
 Calculadora simples para Android, construída com Kotlin e Jetpack Compose (Material 3).
 
+📦 **[Baixe o APK mais recente em Releases](https://github.com/engsoft7/CalcDroid/releases/latest)**
+
 - **applicationId**: `io.github.engsoft7.calcdroid`
 - **minSdk**: 24 · **targetSdk / compileSdk**: 35
 
@@ -69,7 +71,8 @@ git tag v1.0
 git push origin v1.0
 ```
 
-O APK aparece em **Releases** como `CalcDroid-v1.0.apk`.
+O APK aparece em **[Releases](https://github.com/engsoft7/CalcDroid/releases)**
+como `CalcDroid-v1.0.apk`.
 
 Para que o APK saia **assinado** (instalável), configure estes secrets no
 repositório (*Settings → Secrets and variables → Actions*):
