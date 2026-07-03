@@ -57,3 +57,7 @@ O AAB assinado fica em `app/build/outputs/bundle/release/app-release.aab`.
    ícone do app.
 4. A cada nova versão, incremente `versionCode` (e ajuste `versionName`) em
    `app/build.gradle.kts` antes de gerar o AAB.
+
+## Licença
+
+Distribuído sob a licença [MIT](LICENSE).
