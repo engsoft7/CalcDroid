@@ -16,11 +16,11 @@ val keystoreProperties = Properties().apply {
 }
 
 android {
-    namespace = "com.mayconlimasan.calcdroid"
+    namespace = "io.github.engsoft7.calcdroid"
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.mayconlimasan.calcdroid"
+        applicationId = "io.github.engsoft7.calcdroid"
         minSdk = 24
         targetSdk = 35
         versionCode = 1

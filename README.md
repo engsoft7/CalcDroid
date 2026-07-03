@@ -2,7 +2,7 @@
 
 Calculadora simples para Android, construída com Kotlin e Jetpack Compose (Material 3).
 
-- **applicationId**: `com.mayconlimasan.calcdroid`
+- **applicationId**: `io.github.engsoft7.calcdroid`
 - **minSdk**: 24 · **targetSdk / compileSdk**: 35
 
 ## Build de desenvolvimento
