@@ -5,6 +5,7 @@ import android.os.Parcel
 import android.os.Parcelable
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -15,6 +16,7 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -43,6 +45,7 @@ class MainActivity() : ComponentActivity(), Parcelable {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        enableEdgeToEdge()
         setContent {
             CalcDroidTheme {
                 Surface(
@@ -92,19 +95,27 @@ fun BeautifulCalculatorScreen() {
         modifier = Modifier
             .fillMaxSize()
             .background(Color(0xFFF0F0F0)) // Cor de fundo mais clara
+            // Mantém o conteúdo fora da barra de status e da barra de
+            // navegação nos aparelhos edge-to-edge (Android 15+).
+            .safeDrawingPadding()
             .padding(16.dp)
     ) {
-        // Display
-        Text(
-            text = displayValue,
+        // Display ocupa o espaço restante, ancorando o teclado embaixo
+        Box(
             modifier = Modifier
+                .weight(1f)
                 .fillMaxWidth()
                 .padding(bottom = 16.dp),
-            textAlign = TextAlign.End,
-            fontSize = 60.sp, // Tamanho maior para o display
-            fontWeight = FontWeight.Light, // Fonte mais fina
-            color = Color.Black
-        )
+            contentAlignment = Alignment.BottomEnd
+        ) {
+            Text(
+                text = displayValue,
+                textAlign = TextAlign.End,
+                fontSize = 60.sp, // Tamanho maior para o display
+                fontWeight = FontWeight.Light, // Fonte mais fina
+                color = Color.Black
+            )
+        }
 
         // Buttons
         LazyVerticalGrid(
