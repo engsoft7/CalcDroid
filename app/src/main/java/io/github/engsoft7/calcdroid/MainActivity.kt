@@ -40,6 +40,10 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.engsoft7.calcdroid.ui.theme.CalcDroidTheme
+import java.math.BigDecimal
+import java.math.RoundingMode
+import java.util.Locale
+import kotlin.math.abs
 import kotlin.math.cos
 import kotlin.math.floor
 import kotlin.math.ln
@@ -99,6 +103,9 @@ fun BeautifulCalculatorScreen(
     var displayValue by remember { mutableStateOf("0") }
     var firstOperand by remember { mutableStateOf("") }
     var operator by remember { mutableStateOf("") }
+    // Após "=", operador ou função, o próximo dígito inicia um número novo
+    // em vez de ser concatenado ao resultado exibido.
+    var startNewEntry by remember { mutableStateOf(false) }
 
     val scientificRows = listOf(
         listOf("sin", "cos", "tan", "√"),
@@ -165,7 +172,14 @@ fun BeautifulCalculatorScreen(
                 Text(
                     text = displayValue,
                     textAlign = TextAlign.End,
-                    fontSize = 60.sp, // Tamanho maior para o display
+                    maxLines = 1,
+                    // Fonte diminui conforme o número cresce, para o valor
+                    // nunca estourar a largura do display.
+                    fontSize = when {
+                        displayValue.length <= 9 -> 60.sp
+                        displayValue.length <= 13 -> 44.sp
+                        else -> 32.sp
+                    },
                     fontWeight = FontWeight.Light, // Fonte mais fina
                     color = Color.Black
                 )
@@ -199,58 +213,86 @@ fun BeautifulCalculatorScreen(
                                         displayValue = "0"
                                         firstOperand = ""
                                         operator = ""
+                                        startNewEntry = false
                                     }
 
                                     "+/-" -> {
-                                        displayValue = if (displayValue.startsWith("-")) {
-                                            displayValue.drop(1)
-                                        } else {
-                                            "-$displayValue"
+                                        // Só inverte o sinal de valores numéricos (nunca "Erro" ou "0")
+                                        if (displayValue.toDoubleOrNull() != null && displayValue != "0") {
+                                            displayValue = if (displayValue.startsWith("-")) {
+                                                displayValue.drop(1)
+                                            } else {
+                                                "-$displayValue"
+                                            }
                                         }
                                     }
 
                                     "%" -> {
-                                        displayValue = (displayValue.toDouble() / 100).toString()
+                                        displayValue.toDoubleOrNull()?.let {
+                                            displayValue = formatNumber(it / 100)
+                                            startNewEntry = true
+                                        }
                                     }
 
                                     "sin", "cos", "tan", "√", "ln", "log",
                                     "x²", "1/x", "!" -> {
-                                        displayValue = applyScientificFunction(button, displayValue)
+                                        if (displayValue.toDoubleOrNull() != null) {
+                                            displayValue = applyScientificFunction(button, displayValue)
+                                            startNewEntry = true
+                                        }
                                     }
 
                                     "π" -> {
-                                        displayValue = Math.PI.toString()
+                                        displayValue = formatNumber(Math.PI)
+                                        startNewEntry = true
                                     }
 
                                     "e" -> {
-                                        displayValue = Math.E.toString()
+                                        displayValue = formatNumber(Math.E)
+                                        startNewEntry = true
                                     }
 
                                     "+", "-", "*", "/", "^" -> {
-                                        if (firstOperand.isEmpty()) {
-                                            firstOperand = displayValue
+                                        if (displayValue.toDoubleOrNull() != null) {
+                                            if (firstOperand.isEmpty()) {
+                                                firstOperand = displayValue
+                                            } else if (!startNewEntry) {
+                                                // Encadeamento: 2 + 3 + ... calcula a etapa anterior.
+                                                // Com startNewEntry o usuário só está trocando o
+                                                // operador, então nada é calculado.
+                                                val result = calculate(firstOperand, displayValue, operator)
+                                                displayValue = result
+                                                if (result == "Erro") {
+                                                    firstOperand = ""
+                                                    operator = ""
+                                                    startNewEntry = true
+                                                    return@CalculatorButton
+                                                }
+                                                firstOperand = result
+                                            }
                                             operator = button
-                                            displayValue = "0"
-                                        } else {
-                                            val result = calculate(firstOperand, displayValue, operator)
-                                            displayValue = result
-                                            firstOperand = result
-                                            operator = button
+                                            startNewEntry = true
                                         }
                                     }
 
                                     "=" -> {
-                                        if (firstOperand.isNotEmpty() && operator.isNotEmpty()) {
+                                        if (firstOperand.isNotEmpty() && operator.isNotEmpty() &&
+                                            displayValue.toDoubleOrNull() != null
+                                        ) {
                                             displayValue = calculate(firstOperand, displayValue, operator)
                                             firstOperand = ""
                                             operator = ""
+                                            startNewEntry = true
                                         }
                                     }
 
                                     else -> {
-                                        if (displayValue == "0" && button != ".") {
-                                            displayValue = button
-                                        } else {
+                                        if (startNewEntry || displayValue == "0") {
+                                            displayValue = if (button == ".") "0." else button
+                                            startNewEntry = false
+                                        } else if (button == "." && displayValue.contains(".")) {
+                                            // Ignora segundo ponto decimal
+                                        } else if (displayValue.length < 15) {
                                             displayValue += button
                                         }
                                     }
@@ -295,16 +337,17 @@ fun CalculatorButton(
 }
 
 fun calculate(first: String, second: String, operator: String): String {
-    val num1 = first.toDouble()
-    val num2 = second.toDouble()
-    return when (operator) {
-        "+" -> (num1 + num2).toString()
-        "-" -> (num1 - num2).toString()
-        "*" -> (num1 * num2).toString()
-        "/" -> (num1 / num2).toString()
-        "^" -> num1.pow(num2).toString()
-        else -> "0"
+    val num1 = first.toDoubleOrNull() ?: return "Erro"
+    val num2 = second.toDoubleOrNull() ?: return "Erro"
+    val result = when (operator) {
+        "+" -> num1 + num2
+        "-" -> num1 - num2
+        "*" -> num1 * num2
+        "/" -> num1 / num2
+        "^" -> num1.pow(num2)
+        else -> return "0"
     }
+    return formatNumber(result)
 }
 
 fun applyScientificFunction(function: String, value: String): String {
@@ -322,15 +365,32 @@ fun applyScientificFunction(function: String, value: String): String {
         "!" -> factorial(num)
         else -> num
     }
-    return result.toString()
+    return formatNumber(result)
 }
 
 fun factorial(n: Double): Double {
-    // Fatorial só é definido para inteiros não negativos
+    // Fatorial só é definido para inteiros não negativos.
     if (n < 0 || n != floor(n)) return Double.NaN
+    // Acima de 170! o resultado não cabe em um Double; retorna logo
+    // infinito para não percorrer um loop gigante.
+    if (n > 170) return Double.POSITIVE_INFINITY
     var result = 1.0
     for (i in 2..n.toInt()) {
         result *= i
     }
     return result
+}
+
+// Converte o resultado para um texto amigável ao display: arredonda para
+// esconder o erro binário do Double (0.1+0.2, tan 45°...), remove o ".0"
+// de valores inteiros e troca NaN/Infinity por "Erro".
+fun formatNumber(value: Double): String {
+    if (value.isNaN() || value.isInfinite()) return "Erro"
+    if (abs(value) >= 1e12) {
+        return String.format(Locale.US, "%.6E", value)
+    }
+    return BigDecimal(value)
+        .setScale(10, RoundingMode.HALF_UP)
+        .stripTrailingZeros()
+        .toPlainString()
 }
