@@ -28,6 +28,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -39,6 +40,14 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.engsoft7.calcdroid.ui.theme.CalcDroidTheme
+import kotlin.math.cos
+import kotlin.math.floor
+import kotlin.math.ln
+import kotlin.math.log10
+import kotlin.math.pow
+import kotlin.math.sin
+import kotlin.math.sqrt
+import kotlin.math.tan
 
 class MainActivity() : ComponentActivity(), Parcelable {
     constructor(parcel: Parcel) : this() {
@@ -53,7 +62,11 @@ class MainActivity() : ComponentActivity(), Parcelable {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    BeautifulCalculatorScreen()
+                    var isScientific by rememberSaveable { mutableStateOf(false) }
+                    BeautifulCalculatorScreen(
+                        isScientific = isScientific,
+                        onToggleMode = { isScientific = !isScientific }
+                    )
                 }
             }
         }
@@ -79,18 +92,27 @@ class MainActivity() : ComponentActivity(), Parcelable {
 }
 
 @Composable
-fun BeautifulCalculatorScreen() {
+fun BeautifulCalculatorScreen(
+    isScientific: Boolean = false,
+    onToggleMode: () -> Unit = {}
+) {
     var displayValue by remember { mutableStateOf("0") }
     var firstOperand by remember { mutableStateOf("") }
     var operator by remember { mutableStateOf("") }
 
-    val buttonRows = listOf(
+    val scientificRows = listOf(
+        listOf("sin", "cos", "tan", "√"),
+        listOf("ln", "log", "x²", "^"),
+        listOf("π", "e", "1/x", "!")
+    )
+    val basicRows = listOf(
         listOf("C", "+/-", "%", "/"),
         listOf("7", "8", "9", "*"),
         listOf("4", "5", "6", "-"),
         listOf("1", "2", "3", "+"),
         listOf("0", ".", "=")
     )
+    val buttonRows = if (isScientific) scientificRows + basicRows else basicRows
 
     BoxWithConstraints(
         modifier = Modifier
@@ -103,16 +125,36 @@ fun BeautifulCalculatorScreen() {
     ) {
         val spacing = 12.dp
         // Teclas quadradas quando a tela permite, mas nunca mais altas do
-        // que o espaço disponível (reservando área mínima para o display),
-        // para nenhuma linha do teclado ficar cortada embaixo.
+        // que o espaço disponível (reservando área mínima para o display e
+        // para o botão de troca de modo), para nenhuma linha do teclado
+        // ficar cortada embaixo.
+        val rowCount = buttonRows.size
         val cellWidth = (maxWidth - spacing * 3) / 4
-        val cellMaxHeight = (maxHeight - 88.dp - spacing * 5) / 5
+        val cellMaxHeight = (maxHeight - 128.dp - spacing * rowCount) / rowCount
         val buttonHeight = minOf(cellWidth, cellMaxHeight).coerceAtLeast(40.dp)
 
         Column(
             modifier = Modifier.fillMaxSize(),
             verticalArrangement = Arrangement.spacedBy(spacing)
         ) {
+            // Botão para alternar entre a calculadora básica e a científica
+            Row(modifier = Modifier.fillMaxWidth()) {
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(Color(0xFFFFA500))
+                        .clickable { onToggleMode() }
+                        .padding(horizontal = 16.dp, vertical = 8.dp)
+                ) {
+                    Text(
+                        text = if (isScientific) "Básica" else "Científica",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = Color.White
+                    )
+                }
+            }
+
             // Display ocupa o espaço restante, ancorando o teclado embaixo
             Box(
                 modifier = Modifier
@@ -139,8 +181,10 @@ fun BeautifulCalculatorScreen() {
                 ) {
                     row.forEach { button ->
                         val buttonColor = when (button) {
-                            "+", "-", "*", "/", "=", "%", "+/-" -> Color(0xFFFFA500) // Laranja para operadores
+                            "+", "-", "*", "/", "=", "%", "+/-", "^" -> Color(0xFFFFA500) // Laranja para operadores
                             "C" -> Color(0xFFD3D3D3) // Cinza claro para o C
+                            "sin", "cos", "tan", "√", "ln", "log", "x²",
+                            "π", "e", "1/x", "!" -> Color(0xFF4A6572) // Azul acinzentado para funções científicas
                             else -> Color.White // Branco para números
                         }
                         CalculatorButton(
@@ -169,7 +213,20 @@ fun BeautifulCalculatorScreen() {
                                         displayValue = (displayValue.toDouble() / 100).toString()
                                     }
 
-                                    "+", "-", "*", "/" -> {
+                                    "sin", "cos", "tan", "√", "ln", "log",
+                                    "x²", "1/x", "!" -> {
+                                        displayValue = applyScientificFunction(button, displayValue)
+                                    }
+
+                                    "π" -> {
+                                        displayValue = Math.PI.toString()
+                                    }
+
+                                    "e" -> {
+                                        displayValue = Math.E.toString()
+                                    }
+
+                                    "+", "-", "*", "/", "^" -> {
                                         if (firstOperand.isEmpty()) {
                                             firstOperand = displayValue
                                             operator = button
@@ -229,7 +286,8 @@ fun CalculatorButton(
     ) {
         Text(
             text = text,
-            fontSize = 30.sp, // Tamanho maior para os botões
+            // Rótulos longos (sin, cos, log...) usam fonte menor para caber
+            fontSize = if (text.length > 2) 22.sp else 30.sp,
             fontWeight = FontWeight.Medium, // Fonte mais grossa
             color = if (buttonColor == Color.White) Color.Black else Color.White // Cor do texto
         )
@@ -244,6 +302,35 @@ fun calculate(first: String, second: String, operator: String): String {
         "-" -> (num1 - num2).toString()
         "*" -> (num1 * num2).toString()
         "/" -> (num1 / num2).toString()
+        "^" -> num1.pow(num2).toString()
         else -> "0"
     }
+}
+
+fun applyScientificFunction(function: String, value: String): String {
+    val num = value.toDoubleOrNull() ?: return value
+    val result = when (function) {
+        // Funções trigonométricas recebem o ângulo em graus
+        "sin" -> sin(Math.toRadians(num))
+        "cos" -> cos(Math.toRadians(num))
+        "tan" -> tan(Math.toRadians(num))
+        "√" -> sqrt(num)
+        "ln" -> ln(num)
+        "log" -> log10(num)
+        "x²" -> num * num
+        "1/x" -> 1 / num
+        "!" -> factorial(num)
+        else -> num
+    }
+    return result.toString()
+}
+
+fun factorial(n: Double): Double {
+    // Fatorial só é definido para inteiros não negativos
+    if (n < 0 || n != floor(n)) return Double.NaN
+    var result = 1.0
+    for (i in 2..n.toInt()) {
+        result *= i
+    }
+    return result
 }
