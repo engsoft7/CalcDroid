@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -34,8 +35,11 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshots.SnapshotStateList
+import androidx.compose.runtime.toMutableStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -108,19 +112,28 @@ fun BeautifulCalculatorScreen(
     mode: String = MODE_BASIC,
     onModeChange: (String) -> Unit = {}
 ) {
-    // ---- Estado da calculadora de expressões (básica/científica/gráfico) ----
-    var expression by remember { mutableStateOf("") }
-    var lastExpression by remember { mutableStateOf("") }
+    // ---- Estado da calculadora de expressões (básica/científico/gráfico),
+    // preservado ao girar a tela (rememberSaveable) ----
+    var expression by rememberSaveable { mutableStateOf("") }
+    var lastExpression by rememberSaveable { mutableStateOf("") }
     // Após "=", um dígito ou função começa um cálculo novo; um operador
     // continua a conta em cima do resultado exibido.
-    var justEvaluated by remember { mutableStateOf(false) }
-    var plotExpression by remember { mutableStateOf("") }
+    var justEvaluated by rememberSaveable { mutableStateOf(false) }
+    var plotExpression by rememberSaveable { mutableStateOf("") }
 
     // ---- Estado do modo matriz (armazenado achatado 3×3; o 2×2 usa o
     // canto superior esquerdo, preservando os valores ao trocar o tamanho) ----
     var matrixSize by rememberSaveable { mutableStateOf(2) }
-    val cellsA = remember { mutableStateListOf("0", "0", "0", "0", "0", "0", "0", "0", "0") }
-    val cellsB = remember { mutableStateListOf("0", "0", "0", "0", "0", "0", "0", "0", "0") }
+    val cellSaver = listSaver<SnapshotStateList<String>, String>(
+        save = { it.toList() },
+        restore = { it.toMutableStateList() }
+    )
+    val cellsA = rememberSaveable(saver = cellSaver) {
+        mutableStateListOf("0", "0", "0", "0", "0", "0", "0", "0", "0")
+    }
+    val cellsB = rememberSaveable(saver = cellSaver) {
+        mutableStateListOf("0", "0", "0", "0", "0", "0", "0", "0", "0")
+    }
     var matrixResult by remember { mutableStateOf<List<List<String>>?>(null) }
     var matrixMessage by remember { mutableStateOf<String?>(null) }
 
@@ -183,6 +196,11 @@ fun BeautifulCalculatorScreen(
                     val currentNumber = expression.takeLastWhile { it.isDigit() || it == '.' }
                     if (currentNumber.contains('.')) return
                     if (currentNumber.isEmpty()) toAppend = "0."
+                }
+                // "0" sozinho é substituído pelo dígito, evitando "007"
+                if (expression == "0" && button.length == 1 && button[0].isDigit()) {
+                    expression = button
+                    return
                 }
                 // Pós-fixos e fechamento não fazem sentido em expressão vazia
                 if (expression.isEmpty() && button in setOf("*", "/", "^", "%", "!", ")")) return
@@ -262,8 +280,11 @@ fun BeautifulCalculatorScreen(
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        // Seletor de modo
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        // Seletor de modo (com rolagem horizontal para telas estreitas)
+        Row(
+            modifier = Modifier.horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
             listOf(
                 MODE_BASIC to "Básica",
                 MODE_SCIENTIFIC to "Científica",
@@ -390,7 +411,9 @@ fun BeautifulCalculatorScreen(
                                     ) {
                                         Text(
                                             text = cell,
-                                            fontSize = 16.sp,
+                                            // Valores longos (dízimas da inversa)
+                                            // usam fonte menor para caber
+                                            fontSize = if (cell.length > 8) 12.sp else 16.sp,
                                             color = Color.Black,
                                             maxLines = 1
                                         )
@@ -457,7 +480,11 @@ fun BeautifulCalculatorScreen(
                             Text(
                                 text = "f(x) = $graphText",
                                 maxLines = 1,
-                                fontSize = if (graphText.length <= 18) 24.sp else 16.sp,
+                                fontSize = when {
+                                    graphText.length <= 18 -> 24.sp
+                                    graphText.length <= 34 -> 16.sp
+                                    else -> 12.sp
+                                },
                                 fontWeight = FontWeight.Light,
                                 color = Color.Black
                             )
@@ -483,14 +510,15 @@ fun BeautifulCalculatorScreen(
                                 Text(
                                     text = displayText,
                                     textAlign = TextAlign.End,
-                                    maxLines = 2,
+                                    maxLines = 3,
                                     // Fonte diminui conforme a expressão cresce,
                                     // para não estourar a largura do display.
                                     fontSize = when {
                                         displayText.length <= 9 -> 60.sp
                                         displayText.length <= 14 -> 44.sp
                                         displayText.length <= 24 -> 32.sp
-                                        else -> 24.sp
+                                        displayText.length <= 40 -> 24.sp
+                                        else -> 20.sp
                                     },
                                     fontWeight = FontWeight.Light,
                                     color = Color.Black
@@ -686,8 +714,15 @@ fun MatrixGrid(label: String, size: Int, cells: MutableList<String>) {
 fun MatrixCell(value: String, onChange: (String) -> Unit, modifier: Modifier = Modifier) {
     BasicTextField(
         value = value,
-        onValueChange = { new ->
-            if (new.length <= 8 && new.all { it.isDigit() || it == '.' || it == '-' }) {
+        onValueChange = { raw ->
+            // O teclado numérico em pt-BR insere vírgula como separador
+            // decimal; normaliza para ponto antes de validar.
+            val new = raw.replace(',', '.')
+            val validChars = new.all { it.isDigit() || it == '.' || it == '-' }
+            val singleDot = new.count { it == '.' } <= 1
+            // Sinal negativo só no início, e no máximo um
+            val minusOk = !new.contains('-') || (new.startsWith("-") && new.count { it == '-' } == 1)
+            if (new.length <= 8 && validChars && singleDot && minusOk) {
                 onChange(new)
             }
         },
