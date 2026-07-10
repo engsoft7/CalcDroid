@@ -1,8 +1,6 @@
 package io.github.engsoft7.calcdroid
 
 import android.os.Bundle
-import android.os.Parcel
-import android.os.Parcelable
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -65,10 +63,7 @@ const val MODE_SCIENTIFIC = "sci"
 const val MODE_GRAPH = "graph"
 const val MODE_MATRIX = "matrix"
 
-class MainActivity() : ComponentActivity(), Parcelable {
-    constructor(parcel: Parcel) : this() {
-    }
-
+class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -85,24 +80,6 @@ class MainActivity() : ComponentActivity(), Parcelable {
                     )
                 }
             }
-        }
-    }
-
-    override fun writeToParcel(parcel: Parcel, flags: Int) {
-
-    }
-
-    override fun describeContents(): Int {
-        return 0
-    }
-
-    companion object CREATOR : Parcelable.Creator<MainActivity> {
-        override fun createFromParcel(parcel: Parcel): MainActivity {
-            return MainActivity(parcel)
-        }
-
-        override fun newArray(size: Int): Array<MainActivity?> {
-            return arrayOfNulls(size)
         }
     }
 }
@@ -134,8 +111,22 @@ fun BeautifulCalculatorScreen(
     val cellsB = rememberSaveable(saver = cellSaver) {
         mutableStateListOf("0", "0", "0", "0", "0", "0", "0", "0", "0")
     }
-    var matrixResult by remember { mutableStateOf<List<List<String>>?>(null) }
-    var matrixMessage by remember { mutableStateOf<String?>(null) }
+    // Resultado e mensagem também sobrevivem à rotação; o resultado é uma
+    // matriz quadrada, então é salvo achatado e reconstruído pelo tamanho.
+    val resultSaver = listSaver<List<List<String>>?, String>(
+        save = { it?.flatten() ?: emptyList() },
+        restore = { flat ->
+            when (flat.size) {
+                4 -> flat.chunked(2)
+                9 -> flat.chunked(3)
+                else -> null
+            }
+        }
+    )
+    var matrixResult by rememberSaveable(stateSaver = resultSaver) {
+        mutableStateOf<List<List<String>>?>(null)
+    }
+    var matrixMessage by rememberSaveable { mutableStateOf<String?>(null) }
 
     fun onKey(button: String) {
         when (button) {
@@ -147,6 +138,11 @@ fun BeautifulCalculatorScreen(
             }
 
             "⌫" -> {
+                if (justEvaluated) {
+                    // Apagar em cima de um resultado passa a editá-lo; a linha
+                    // "... =" acima deixaria de corresponder ao que se vê.
+                    lastExpression = ""
+                }
                 justEvaluated = false
                 if (expression == "Erro") {
                     expression = ""
@@ -183,7 +179,12 @@ fun BeautifulCalculatorScreen(
             else -> {
                 if (justEvaluated) {
                     val continuesResult = button in setOf("+", "-", "*", "/", "^", "%", "!")
-                    if (expression == "Erro" || !continuesResult) expression = ""
+                    if (expression == "Erro" || !continuesResult) {
+                        // Cálculo novo: some também a conta anterior, que só
+                        // faz sentido em cima do resultado que ela produziu.
+                        expression = ""
+                        lastExpression = ""
+                    }
                     justEvaluated = false
                 }
                 var toAppend = when (button) {
