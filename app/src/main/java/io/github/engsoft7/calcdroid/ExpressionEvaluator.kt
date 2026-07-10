@@ -24,7 +24,9 @@ import kotlin.math.tan
  *   unário    := ('-' | '+') unário | potência
  *   potência  := pósfixo ('^' unário)?                             // associativa à direita
  *   pósfixo   := átomo ('!' | '%')*                                // fatorial e porcentagem
- *   átomo     := número | π | e | x | '(' expressão ')' | função unário
+ *   átomo     := número | π | e | x | '(' expressão ')' | função
+ *   função    := nome '(' expressão ')'                            // sin(30)^2 = (sin 30)²
+ *              | nome unário                                       // √16^2 = √(16²)
  *
  * As funções trigonométricas recebem o ângulo em graus. Expressões
  * malformadas lançam IllegalArgumentException.
@@ -137,7 +139,19 @@ object ExpressionEvaluator {
             for (name in FUNCTIONS) {
                 if (text.startsWith(name, pos)) {
                     pos += name.length
-                    val arg = parseUnary()
+                    // Argumento entre parênteses encerra a aplicação, para o
+                    // expoente/pós-fixo seguinte agir sobre o resultado:
+                    // sin(30)^2 = (sin 30)². Sem parênteses o argumento
+                    // estende até o unário: √16^2 = √(16²).
+                    val arg = if (peek() == '(') {
+                        pos++
+                        val value = parseExpression()
+                        if (peek() != ')') throw IllegalArgumentException("Falta fechar parêntese")
+                        pos++
+                        value
+                    } else {
+                        parseUnary()
+                    }
                     return when (name) {
                         "sin" -> sin(Math.toRadians(arg))
                         "cos" -> cos(Math.toRadians(arg))
