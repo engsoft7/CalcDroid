@@ -5,7 +5,7 @@ Calculadora simples para Android, construída com Kotlin e Jetpack Compose (Mate
 📦 **[Baixe o APK mais recente em Releases](https://github.com/engsoft7/CalcDroid/releases/latest)**
 
 - **applicationId**: `io.github.engsoft7.calcdroid`
-- **minSdk**: 24 · **targetSdk / compileSdk**: 35
+- **minSdk**: 24 · **targetSdk / compileSdk**: 37
 
 ## Build de desenvolvimento
 
