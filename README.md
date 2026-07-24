@@ -84,12 +84,12 @@ release e o anexa automaticamente na Release do GitHub sempre que uma tag
 `v*` é criada:
 
 ```bash
-git tag v1.0
-git push origin v1.0
+git tag v1.9
+git push origin v1.9
 ```
 
 O APK aparece em **[Releases](https://github.com/engsoft7/CalcDroid/releases)**
-como `CalcDroid-v1.0.apk`.
+como `CalcDroid-v1.9.apk`.
 
 O keystore de assinatura fica **criptografado** (AES-256) no repositório, em
 `.github/calcdroid-upload.jks.enc`. Para que o APK saia **assinado**
