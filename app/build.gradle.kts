@@ -22,8 +22,8 @@ android {
         applicationId = "io.github.engsoft7.calcdroid"
         minSdk = 24
         targetSdk = 37
-        versionCode = 11
-        versionName = "1.11"
+        versionCode = 12
+        versionName = "1.12"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -41,11 +41,15 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            ndk {
+                debugSymbolLevel = "FULL"
+            }
             // Signed only when keystore.properties exists; otherwise the
             // release build is produced unsigned (useful for CI checks).
             signingConfig = signingConfigs.findByName("release")
