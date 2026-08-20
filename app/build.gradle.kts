@@ -22,8 +22,8 @@ android {
         applicationId = "io.github.engsoft7.calcdroid"
         minSdk = 24
         targetSdk = 37
-        versionCode = 14
-        versionName = "1.14"
+        versionCode = 16
+        versionName = "1.15"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
