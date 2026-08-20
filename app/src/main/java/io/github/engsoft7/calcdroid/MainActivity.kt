@@ -1,12 +1,14 @@
 package io.github.engsoft7.calcdroid
 
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -40,6 +42,7 @@ import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.runtime.toMutableStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
@@ -48,6 +51,9 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -89,6 +95,9 @@ fun BeautifulCalculatorScreen(
     mode: String = MODE_BASIC,
     onModeChange: (String) -> Unit = {}
 ) {
+    val clipboardManager = LocalClipboardManager.current
+    val context = LocalContext.current
+
     // ---- Estado da calculadora de expressões (básica/científico/gráfico),
     // preservado ao girar a tela (rememberSaveable) ----
     var expression by rememberSaveable { mutableStateOf("") }
@@ -492,10 +501,19 @@ fun BeautifulCalculatorScreen(
                         }
                     } else {
                         // Display ocupa o espaço restante, ancorando o teclado embaixo
+                        val displayText = expression.ifEmpty { "0" }
                         Box(
                             modifier = Modifier
                                 .weight(1f)
-                                .fillMaxWidth(),
+                                .fillMaxWidth()
+                                .pointerInput(displayText) {
+                                    detectTapGestures(
+                                        onLongPress = {
+                                            clipboardManager.setText(AnnotatedString(displayText))
+                                            Toast.makeText(context, "Copiado!", Toast.LENGTH_SHORT).show()
+                                        }
+                                    )
+                                },
                             contentAlignment = Alignment.BottomEnd
                         ) {
                             Column(horizontalAlignment = Alignment.End) {
@@ -507,7 +525,6 @@ fun BeautifulCalculatorScreen(
                                         maxLines = 1
                                     )
                                 }
-                                val displayText = expression.ifEmpty { "0" }
                                 Text(
                                     text = displayText,
                                     textAlign = TextAlign.End,
