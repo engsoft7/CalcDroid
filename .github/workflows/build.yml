@@ -45,6 +45,36 @@ jobs:
       - name: Rodar testes unitários
         run: ./gradlew testDebugUnitTest --stacktrace
 
+      # Sem os secrets do keystore o APK sai sem assinatura, o que não importa
+      # aqui: o que interessa é o dex já minificado pelo R8, igual ao que vai
+      # para a loja. Também cobre erros de R8/proguard, que o debug não pega.
+      - name: Compilar APK de release (sem assinatura)
+        run: ./gradlew assembleRelease --stacktrace
+
+      # A Play Console recusa/adverte apps que chamam as APIs antigas de
+      # edge-to-edge. Elas não vêm do tema, e sim de dentro do
+      # enableEdgeToEdge() do androidx.activity — ver o comentário em
+      # MainActivity.onCreate. Falha aqui se alguém reintroduzir a chamada.
+      - name: Conferir ausência de APIs descontinuadas de edge-to-edge
+        run: |
+          APK=$(ls app/build/outputs/apk/release/app-release*.apk | head -n1)
+          echo "Analisando $APK"
+          rm -rf /tmp/dexcheck && mkdir -p /tmp/dexcheck
+          unzip -o -q "$APK" '*.dex' -d /tmp/dexcheck
+          FOUND=""
+          for api in setStatusBarColor setNavigationBarColor \
+                     setDecorFitsSystemWindows setNavigationBarContrastEnforced \
+                     setSystemUiVisibility; do
+            if grep -qa "$api" /tmp/dexcheck/*.dex; then
+              FOUND="$FOUND $api"
+            fi
+          done
+          if [ -n "$FOUND" ]; then
+            echo "::error::O APK de release ainda referencia APIs descontinuadas de edge-to-edge:$FOUND"
+            exit 1
+          fi
+          echo "OK: nenhuma API descontinuada de edge-to-edge no dex."
+
       - name: Publicar relatório dos testes
         if: failure()
         uses: actions/upload-artifact@v4

@@ -4,7 +4,6 @@ import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -70,8 +69,13 @@ const val MODE_GRAPH = "graph"
 const val MODE_MATRIX = "matrix"
 
 class MainActivity : ComponentActivity() {
+    // Não chame enableEdgeToEdge() aqui. Com targetSdk 37 o sistema já aplica
+    // edge-to-edge sozinho a partir da API 35, e por dentro aquela função usa
+    // setStatusBarColor/setNavigationBarColor/setDecorFitsSystemWindows, que a
+    // Play Console sinaliza como APIs descontinuadas. Sem a chamada, o R8
+    // remove esse código e o aviso não aparece. Os insets continuam tratados
+    // pelo safeDrawingPadding() da tela.
     override fun onCreate(savedInstanceState: Bundle?) {
-        enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         setContent {
             CalcDroidTheme {
