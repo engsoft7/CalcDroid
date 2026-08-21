@@ -69,19 +69,40 @@ jobs:
           keyPassword=$KEY_PASSWORD
           EOF
 
-      - name: Compilar APK de release
-        run: ./gradlew assembleRelease
+      # O APK é o que se instala direto no aparelho; o AAB é o que se envia
+      # no Play Console (o Google recusa APK em atualização de app novo e
+      # reassina o bundle com a chave de app signing).
+      - name: Compilar APK e AAB de release
+        run: ./gradlew assembleRelease bundleRelease
 
-      - name: Preparar artefato
+      - name: Preparar artefatos
         env:
           RELEASE_TAG: ${{ github.event.inputs.tag || github.ref_name }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
         run: |
           APK=$(ls app/build/outputs/apk/release/app-release*.apk | head -n1)
           cp "$APK" "CalcDroid-${RELEASE_TAG}.apk"
+
+          AAB=$(ls app/build/outputs/bundle/release/app-release*.aab | head -n1)
+          cp "$AAB" "CalcDroid-${RELEASE_TAG}.aab"
+
+          # Sem os secrets o build sai sem assinatura de propósito (ver acima).
+          # Com os secrets, um bundle sem assinatura seria recusado no Play
+          # Console — falha aqui, em vez de publicar um artefato inútil.
+          if [ -n "$KEYSTORE_PASSWORD" ]; then
+            if unzip -l "$AAB" | grep -qiE 'META-INF/.*\.(RSA|DSA|EC)$'; then
+              echo "AAB assinado com a chave de upload."
+            else
+              echo "::error::O AAB saiu sem assinatura; confira os secrets KEYSTORE_*."
+              exit 1
+            fi
+          fi
 
       - name: Publicar na Release do GitHub
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.event.inputs.tag || github.ref_name }}
-          files: CalcDroid-*.apk
+          files: |
+            CalcDroid-*.apk
+            CalcDroid-*.aab
           generate_release_notes: true
