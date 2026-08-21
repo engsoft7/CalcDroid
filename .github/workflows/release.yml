@@ -39,33 +39,47 @@ jobs:
       - name: Configurar Gradle
         uses: gradle/actions/setup-gradle@v4
 
-      # O keystore fica criptografado no repositório em
-      # .github/calcdroid-upload.jks.enc (AES-256) e é descriptografado com
-      # os secrets do repositório (Settings > Secrets and variables > Actions):
-      #   KEYSTORE_PASSWORD - senha do keystore (também descriptografa o .enc)
-      #   KEY_ALIAS         - alias da chave (ex.: calcdroid-upload)
+      # Secrets do repositório (Settings > Secrets and variables > Actions):
+      #   KEYSTORE_BASE64   - o .jks inteiro em base64 (recomendado)
+      #   KEYSTORE_PASSWORD - senha do keystore
+      #   KEY_ALIAS         - alias da chave
       #   KEY_PASSWORD      - senha da chave
-      # Sem os secrets, o APK é gerado sem assinatura (não instalável).
+      #
+      # Preferimos KEYSTORE_BASE64 porque este repositório é público: o
+      # arquivo .github/calcdroid-upload.jks.enc pode ser baixado por
+      # qualquer um, e só a senha do AES o protege contra quebra offline.
+      # Com a chave num secret, nada dela fica exposto. O caminho do .enc
+      # segue funcionando para não quebrar quem ainda o usa.
+      # Sem nenhum dos dois, o build sai sem assinatura (útil para CI).
       - name: Restaurar keystore de assinatura
         env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
-          if [ -z "$KEYSTORE_PASSWORD" ]; then
+          if [ -n "$KEYSTORE_BASE64" ]; then
+            echo "Usando o keystore do secret KEYSTORE_BASE64."
+            if ! printf '%s' "$KEYSTORE_BASE64" | base64 -d > calcdroid-upload.jks; then
+              echo "::error::KEYSTORE_BASE64 nao e base64 valido. Gere com: base64 -w0 SEU_KEYSTORE.jks"
+              exit 1
+            fi
+          elif [ -n "$KEYSTORE_PASSWORD" ]; then
+            echo "KEYSTORE_BASE64 ausente; caindo para o keystore criptografado no repositorio."
+            if ! openssl enc -d -aes-256-cbc -pbkdf2 \
+                -in .github/calcdroid-upload.jks.enc -out calcdroid-upload.jks \
+                -pass env:KEYSTORE_PASSWORD; then
+              echo "::error::Falha ao descriptografar o keystore. A senha precisa ser a mesma usada para criptografar o .enc — trocar o secret nao troca o arquivo. Prefira definir KEYSTORE_BASE64."
+              exit 1
+            fi
+          else
             echo "::warning::Secrets do keystore ausentes; o APK sairá sem assinatura."
             exit 0
-          fi
-          if ! openssl enc -d -aes-256-cbc -pbkdf2 \
-              -in .github/calcdroid-upload.jks.enc -out calcdroid-upload.jks \
-              -pass env:KEYSTORE_PASSWORD; then
-            echo "::error::Falha ao descriptografar o keystore; confira o secret KEYSTORE_PASSWORD."
-            exit 1
           fi
           # Falha cedo, com mensagem clara, se o keystore ou as senhas estiverem errados.
           if ! keytool -list -keystore calcdroid-upload.jks \
               -storepass "$KEYSTORE_PASSWORD" -alias "$KEY_ALIAS" > /dev/null; then
-            echo "::error::Keystore ou senhas inválidos; confira os secrets KEYSTORE_*."
+            echo "::error::Keystore ou senhas inválidos; confira os secrets KEYSTORE_PASSWORD/KEY_ALIAS/KEY_PASSWORD."
             exit 1
           fi
           cat > keystore.properties <<EOF
