@@ -1,0 +1,54 @@
+name: Build
+
+# Compila o app e roda os testes a cada push e a cada pull request.
+#
+# O workflow de Release só dispara em tag (ou execução manual), então sem
+# este aqui um commit pode chegar ao master sem nunca ter sido compilado —
+# foi o que aconteceu na v1.15, cujos erros de recurso só apareceram depois.
+# Tags não entram aqui: o filtro de branches já as exclui, e quem compila
+# release é o release.yml.
+on:
+  push:
+    branches:
+      - "**"
+  pull_request:
+
+permissions:
+  contents: read
+
+# Um push novo na mesma ref cancela a execução anterior, que já está obsoleta.
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configurar JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Configurar Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      # assembleDebug não precisa do keystore e já roda o aapt2 em todos os
+      # recursos, que é onde moram os erros de ícone/drawable.
+      - name: Compilar APK de debug
+        run: ./gradlew assembleDebug --stacktrace
+
+      - name: Rodar testes unitários
+        run: ./gradlew testDebugUnitTest --stacktrace
+
+      - name: Publicar relatório dos testes
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: app/build/reports/tests/
+          if-no-files-found: ignore
