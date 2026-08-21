@@ -20,6 +20,12 @@ permissions:
 jobs:
   release:
     runs-on: ubuntu-latest
+    env:
+      # Impressão digital da chave de upload que o Play Console exige para
+      # este app. Um bundle assinado com outra chave é recusado no envio, e
+      # o erro só aparece lá — por isso a conferência acontece aqui.
+      # Se a chave de upload for redefinida no Play Console, troque o valor.
+      EXPECTED_UPLOAD_SHA1: "71:EF:0A:75:54:F4:79:E8:A4:60:A0:C5:58:45:2B:86:C8:04:CA:A3"
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -87,15 +93,24 @@ jobs:
           cp "$AAB" "CalcDroid-${RELEASE_TAG}.aab"
 
           # Sem os secrets o build sai sem assinatura de propósito (ver acima).
-          # Com os secrets, um bundle sem assinatura seria recusado no Play
-          # Console — falha aqui, em vez de publicar um artefato inútil.
+          # Com os secrets, não basta estar assinado: precisa ser a chave de
+          # upload certa, senão o Play Console recusa o envio.
           if [ -n "$KEYSTORE_PASSWORD" ]; then
-            if unzip -l "$AAB" | grep -qiE 'META-INF/.*\.(RSA|DSA|EC)$'; then
-              echo "AAB assinado com a chave de upload."
-            else
+            SIG=$(unzip -Z1 "$AAB" 'META-INF/*.RSA' 'META-INF/*.DSA' 'META-INF/*.EC' 2>/dev/null | head -n1)
+            if [ -z "$SIG" ]; then
               echo "::error::O AAB saiu sem assinatura; confira os secrets KEYSTORE_*."
               exit 1
             fi
+            unzip -p "$AAB" "$SIG" > /tmp/upload-sig.p7
+            ATUAL=$(openssl pkcs7 -inform DER -in /tmp/upload-sig.p7 -print_certs \
+                    | openssl x509 -noout -fingerprint -sha1 | sed 's/.*=//')
+            echo "Impressao digital do AAB: $ATUAL"
+            echo "Esperada pelo Play      : $EXPECTED_UPLOAD_SHA1"
+            if [ "$ATUAL" != "$EXPECTED_UPLOAD_SHA1" ]; then
+              echo "::error::O AAB foi assinado com a chave errada. O Play Console vai recusar o envio. Verifique se .github/calcdroid-upload.jks.enc contem o keystore de upload correto e se os secrets KEYSTORE_PASSWORD/KEY_ALIAS/KEY_PASSWORD correspondem a ele."
+              exit 1
+            fi
+            echo "OK: assinado com a chave de upload esperada."
           fi
 
       - name: Publicar na Release do GitHub
