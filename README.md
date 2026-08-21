@@ -115,11 +115,26 @@ antes de criar a tag.
 
 ## Ícone do app e artes da loja
 
-Todos os assets do ícone (drawables vetoriais do adaptive icon, PNGs legados
-por densidade e o ícone 512×512 da ficha da Play Store) são gerados a partir
-de `tools/generate_launcher_icon.py`. O gráfico de destaque da loja
-(1024×500) sai de `tools/generate_feature_graphic.py`, que usa a mesma paleta.
-Para alterar as artes, edite a paleta ou a geometria nos scripts e rode:
+A arte de origem é `tools/icon_glyph.png`: só a calculadora, em RGBA com
+fundo transparente. O degradê laranja não fica embutido nesse PNG — ele é
+desenhado pelos scripts, para que o adaptive icon use as duas camadas
+separadas, como o Android espera.
+
+`tools/generate_launcher_icon.py` gera, a partir dela:
+
+- `drawable/ic_launcher_background.xml` — vetor com o degradê do fundo;
+- `drawable/ic_launcher_monochrome.xml` — vetor do ícone temático (Android 13+);
+- `mipmap-*/ic_launcher_foreground.png` — camada de frente, com o glifo
+  dimensionado para caber na zona segura de 66dp do canvas de 108dp (fora
+  dela o launcher recorta o desenho);
+- `mipmap-*/ic_launcher{,_round}.png` — ícones legados (pré-API 26), já
+  recortados em quadrado arredondado e em círculo;
+- `play-store/ic_launcher-playstore.png` — ícone 512×512 da ficha da loja.
+
+O gráfico de destaque da loja (1024×500) sai de
+`tools/generate_feature_graphic.py`, que reaproveita o mesmo glifo e o mesmo
+degradê. Para alterar as artes, troque `tools/icon_glyph.png` ou ajuste a
+paleta/geometria nos scripts e rode:
 
 ```bash
 pip install Pillow
