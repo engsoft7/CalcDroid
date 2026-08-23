@@ -142,6 +142,11 @@ python3 tools/generate_launcher_icon.py
 python3 tools/generate_feature_graphic.py
 ```
 
+A identidade roxa usada até a versão 1.14 está arquivada em
+[`design/identidade-roxa/`](design/identidade-roxa), fora do build. Veja
+[`design/README.md`](design/README.md) para a paleta das duas e como
+alternar entre elas.
+
 ## Licença
 
 Distribuído sob a licença [MIT](LICENSE).
