@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0b1220">
+  <meta name="description" content="Privacy Policy for CalcDroid, an Android calculator developed by Engsoft7.">
+  <meta name="robots" content="index,follow">
+  <title>Privacy Policy — CalcDroid | Engsoft7</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #0b1220;
+      --surface: #111c2f;
+      --text: #f4f7fb;
+      --muted: #afbbce;
+      --accent: #68e0c0;
+      --border: rgba(255,255,255,.13);
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; scroll-padding-top: 24px; }
+    body {
+      margin: 0;
+      color: var(--text);
+      background: radial-gradient(ellipse at 85% 0%, #20385a 0, transparent 38%), var(--bg);
+      font: 16px/1.7 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    a { color: var(--accent); }
+    a:focus-visible { outline: 3px solid var(--accent); outline-offset: 4px; }
+    .container { width: min(900px, calc(100% - 36px)); margin-inline: auto; }
+    header { border-bottom: 1px solid var(--border); }
+    .topbar {
+      min-height: 76px; display: flex; align-items: center;
+      justify-content: space-between; gap: 18px;
+    }
+    .brand {
+      color: var(--text); font-size: 1.3rem; font-weight: 850;
+      letter-spacing: -.5px; text-decoration: none; white-space: nowrap;
+    }
+    .brand span { color: var(--accent); }
+    .language-switch {
+      display: inline-block; padding: 9px 14px;
+      border: 1px solid var(--accent); border-radius: 10px;
+      color: var(--accent); font-weight: 750; text-decoration: none; white-space: nowrap;
+    }
+    .language-switch:hover { background: rgba(104,224,192,.1); }
+    main { padding: 48px 0 60px; }
+    .eyebrow {
+      color: var(--accent); font-size: .78rem; font-weight: 800;
+      letter-spacing: 2px; text-transform: uppercase;
+    }
+    h1 {
+      margin: 8px 0 12px; font-size: clamp(2rem, 5vw, 3.3rem);
+      line-height: 1.12; letter-spacing: -1.5px;
+    }
+    h2 { margin: 32px 0 10px; font-size: clamp(1.25rem, 3vw, 1.55rem); line-height: 1.3; }
+    p { margin: 0 0 14px; }
+    .subtitle, .updated { color: var(--muted); }
+    .updated { margin-top: 7px; font-size: .92rem; }
+    .summary {
+      margin: 26px 0; padding: 18px 20px;
+      border: 1px solid var(--border); border-radius: 16px;
+      background: rgba(17,28,47,.82);
+    }
+    .summary strong { color: var(--text); }
+    .summary p { margin: 8px 0 0; color: var(--muted); }
+    .toc {
+      margin: 26px 0 30px; padding: 20px 22px;
+      border: 1px solid var(--border); border-radius: 16px;
+      background: rgba(17,28,47,.82);
+    }
+    .toc strong { display: block; margin-bottom: 8px; }
+    .toc-links { display: flex; flex-wrap: wrap; gap: 8px 17px; }
+    .toc a { text-decoration: none; }
+    .toc a:hover { text-decoration: underline; }
+    .policy-section { padding-top: 4px; }
+    .policy-section p:last-child { margin-bottom: 0; }
+    ul { padding-left: 24px; margin: 8px 0 16px; }
+    li { padding-left: 3px; margin: 5px 0; }
+    footer {
+      padding: 23px 0; border-top: 1px solid var(--border);
+      color: var(--muted); font-size: .92rem;
+    }
+    footer .container {
+      display: flex; flex-wrap: wrap; justify-content: space-between; gap: 10px 18px;
+    }
+    footer a { text-decoration: none; }
+    @media (max-width: 560px) {
+      .topbar { min-height: auto; padding: 16px 0; align-items: flex-start; flex-direction: column; }
+      main { padding-top: 34px; }
+      .toc, .summary { padding: 17px; }
+    }
+    @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="container topbar">
+      <a class="brand" href="https://engsoft7.github.io/" aria-label="Engsoft7 main website">Engsoft<span>7</span></a>
+      <a class="language-switch" href="privacy-policy.html" lang="pt-BR" hreflang="pt-BR" aria-label="Ler esta política de privacidade em português">← Versão em português</a>
+    </div>
+  </header>
+
+  <main class="container">
+    <div class="eyebrow">Privacy and transparency</div>
+    <h1>CalcDroid Privacy Policy</h1>
+    <p class="subtitle"><strong>App:</strong> CalcDroid (<code>io.github.engsoft7.calcdroid</code>)</p>
+    <p>CalcDroid is a free Android calculator developed and published by Engsoft7. This policy explains how the app handles information during use.</p>
+    <p class="updated"><strong>Last updated:</strong> July 10, 2026</p>
+
+    <div class="summary">
+      <strong>Summary</strong>
+      <p>The CalcDroid app does not collect, store, or share personal data. It operates on your device, does not request Android permissions, and does not access the internet. All calculations are performed locally.</p>
+    </div>
+
+    <nav class="toc" aria-label="Privacy policy contents">
+      <strong>On this page</strong>
+      <div class="toc-links">
+        <a href="#device">Data on your device</a>
+        <a href="#collection">Data collection and sharing</a>
+        <a href="#third-parties">Third-party services</a>
+        <a href="#children">Children</a>
+        <a href="#changes">Policy changes</a>
+        <a href="#contact">Contact</a>
+      </div>
+    </nav>
+
+    <section class="policy-section" id="device">
+      <h2>1. Data on Your Device</h2>
+      <p>Expressions, graphs, and matrices you enter exist only in the app's memory while it is open, so the interface can function, for example, when you rotate the screen.</p>
+      <p>The app does not save a history or files, and this content does not leave your device.</p>
+    </section>
+
+    <section class="policy-section" id="collection">
+      <h2>2. Data Collection and Sharing</h2>
+      <p>CalcDroid does not collect, store, or share personal data. The app does not request Android permissions and does not access the internet. It does not transmit data to its own servers or third parties during operation.</p>
+    </section>
+
+    <section class="policy-section" id="third-parties">
+      <h2>3. Third-Party Services</h2>
+      <p>The app does not use analytics, advertising, tracking, or other third-party services. Installation and distribution are provided through Google Play, which has its own privacy policy:</p>
+      <p><a href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer">Google Privacy Policy ↗</a></p>
+    </section>
+
+    <section class="policy-section" id="children">
+      <h2>4. Children</h2>
+      <p>The app does not collect children's personal data.</p>
+    </section>
+
+    <section class="policy-section" id="changes">
+      <h2>5. Changes to This Policy</h2>
+      <p>If the app changes how it handles data, this policy will be updated to explain the changes and show a new update date.</p>
+    </section>
+
+    <section class="policy-section" id="contact">
+      <h2>6. Contact</h2>
+      <p>Questions about this policy can be sent to <a href="mailto:maycon.engineer@gmail.com">maycon.engineer@gmail.com</a>.</p>
+      <p>You can also open an issue in the <a href="https://github.com/engsoft7/CalcDroid" target="_blank" rel="noopener noreferrer">CalcDroid GitHub repository ↗</a>.</p>
+    </section>
+  </main>
+
+  <footer>
+    <div class="container">
+      <span>© 2026 Engsoft7. All rights reserved.</span>
+      <a href="https://github.com/engsoft7/CalcDroid" target="_blank" rel="noopener noreferrer">CalcDroid — open-source project under the MIT license ↗</a>
+    </div>
+  </footer>
+</body>
+</html>
