@@ -1,0 +1,55 @@
+name: Exportar certificado de upload
+
+# Gera o certificado público (upload_certificate.pem) do keystore que está nos
+# secrets e o disponibiliza como artefato, para pedir a redefinição da chave
+# de upload no Play Console (Integridade do app > Assinatura de apps >
+# Solicitar redefinição da chave de upload).
+#
+# O certificado é público: não contém a chave privada nem as senhas.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  certificate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configurar JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Exportar certificado
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+        run: |
+          if [ -n "$KEYSTORE_BASE64" ]; then
+            printf '%s' "$KEYSTORE_BASE64" | base64 -d > ks.jks
+          elif [ -n "$KEYSTORE_PASSWORD" ]; then
+            openssl enc -d -aes-256-cbc -pbkdf2 -in .github/calcdroid-upload.jks.enc \
+              -out ks.jks -pass env:KEYSTORE_PASSWORD
+          else
+            echo "::error::Secrets do keystore ausentes (KEYSTORE_BASE64 ou KEYSTORE_PASSWORD)."
+            exit 1
+          fi
+          mkdir -p out
+          keytool -export -rfc -keystore ks.jks -storepass "$KEYSTORE_PASSWORD" \
+            -alias "$KEY_ALIAS" -file out/upload_certificate.pem
+          rm -f ks.jks
+          SHA1=$(openssl x509 -in out/upload_certificate.pem -noout -fingerprint -sha1 | sed 's/.*=//')
+          echo "SHA-1 deste certificado: $SHA1" | tee out/sha1.txt
+          echo "::notice::Certificado exportado. SHA-1: $SHA1. Baixe o artefato upload-certificate."
+
+      - name: Guardar certificado
+        uses: actions/upload-artifact@v4
+        with:
+          name: upload-certificate
+          path: out/
