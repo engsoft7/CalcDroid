@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Modo escuro do sistema: janela escura, para não piscar branco ao abrir. -->
+    <style name="Theme.CalcDroid" parent="android:Theme.DeviceDefault.NoActionBar" />
+</resources>

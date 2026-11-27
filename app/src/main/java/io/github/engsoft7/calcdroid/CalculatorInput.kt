@@ -16,6 +16,8 @@ data class CalcState(
     val justEvaluated: Boolean = false,
     // Expressão desenhada no modo gráfico.
     val plotExpression: String = "",
+    // Valor guardado pelas teclas de memória (M+, M−, MR, MC).
+    val memory: Double = 0.0,
 )
 
 const val ERROR_TEXT = "Erro"
@@ -24,18 +26,61 @@ private const val MAX_LENGTH = 60
 private const val BINARY_OPERATORS = "+-*/^"
 // Operadores depois dos quais um "-" é o sinal do próximo número: 5×−3, 2^−1.
 private const val SIGN_ALLOWED_AFTER = "*/^"
-private val FUNCTION_TOKENS = listOf("sin(", "cos(", "tan(", "log(", "ln(", "√(")
-private val CONTINUES_RESULT = setOf("+", "-", "*", "/", "^", "%", "!")
+// Tokens que entram e saem inteiros com uma tecla (apagar remove o token todo).
+private val WHOLE_TOKENS = listOf(
+    "asin(", "acos(", "atan(", "abs(", "sin(", "cos(", "tan(", "log(", "ln(", "√(", "^(-1)", "mod"
+)
+private val FUNCTION_KEYS = setOf("sin", "cos", "tan", "asin", "acos", "atan", "abs", "ln", "log", "√")
+private val CONTINUES_RESULT = setOf("+", "-", "*", "/", "^", "%", "!", "x²", "x⁻¹", "mod")
 // Teclas que precisam de um operando à esquerda.
-private val NEEDS_OPERAND = setOf("*", "/", "^", "%", "!", ")")
+private val NEEDS_OPERAND = setOf("*", "/", "^", "%", "!", ")", "x²", "x⁻¹", "mod")
+private val POSTFIX_KEYS = setOf("%", "!", ")", "x²", "x⁻¹", "mod")
 // Expoente que ficou pendurado ao apagar um resultado como "1.5E+12".
 private val DANGLING_EXPONENT = Regex("E[+-]?$")
 
-fun CalcState.press(key: String, graphMode: Boolean = false): CalcState = when (key) {
-    "C" -> CalcState()
-    "⌫" -> backspace()
-    "=" -> evaluate(graphMode)
-    else -> append(key)
+fun CalcState.press(key: String, graphMode: Boolean = false, degrees: Boolean = true): CalcState =
+    when (key) {
+        // Limpar não apaga a memória, como nas calculadoras de verdade.
+        "C" -> CalcState(memory = memory)
+        "⌫" -> backspace()
+        "=" -> evaluate(graphMode, degrees)
+        "MC" -> copy(memory = 0.0)
+        "M+", "M-" -> {
+            val value = currentValue(degrees)
+            if (value == null) this
+            else copy(memory = if (key == "M+") memory + value else memory - value)
+        }
+        "MR" -> recallMemory()
+        else -> append(key)
+    }
+
+/** Valor do que está no visor, ou null se não for uma conta válida. */
+fun CalcState.currentValue(degrees: Boolean = true): Double? {
+    if (expression.isEmpty() || expression == ERROR_TEXT) return null
+    return try {
+        ExpressionEvaluator.evaluate(autoCloseParentheses(expression), degrees = degrees)
+            .takeIf { it.isFinite() }
+    } catch (e: Exception) {
+        null
+    }
+}
+
+private fun CalcState.recallMemory(): CalcState {
+    val text = formatNumber(memory)
+    // Depois de "=" (ou de um erro) a memória começa uma conta nova.
+    val base = if (justEvaluated || expression == ERROR_TEXT) {
+        copy(expression = "", lastExpression = "", justEvaluated = false)
+    } else {
+        this
+    }
+    // Um número negativo logo depois de outro número viraria subtração
+    // ("5" + "-3" = "5-3"); entre parênteses fica multiplicação: 5(-3).
+    val token = if (memory < 0 && base.expression.lastOrNull()?.let { it.isDigit() || it == ')' } == true) {
+        "($text)"
+    } else {
+        text
+    }
+    return base.appendLimited(token)
 }
 
 private fun CalcState.backspace(): CalcState {
@@ -44,17 +89,17 @@ private fun CalcState.backspace(): CalcState {
     val base = if (justEvaluated) copy(lastExpression = "", justEvaluated = false) else this
     if (expression == ERROR_TEXT) return base.copy(expression = "")
     // Funções entram inteiras ("sin("), então saem inteiras.
-    val function = FUNCTION_TOKENS.firstOrNull { expression.endsWith(it) }
+    val function = WHOLE_TOKENS.firstOrNull { expression.endsWith(it) }
     val trimmed = expression.dropLast(function?.length ?: 1)
     return base.copy(expression = trimmed.replace(DANGLING_EXPONENT, ""))
 }
 
-private fun CalcState.evaluate(graphMode: Boolean): CalcState {
+private fun CalcState.evaluate(graphMode: Boolean, degrees: Boolean): CalcState {
     if (expression.isEmpty() || expression == ERROR_TEXT) return this
     val closed = autoCloseParentheses(expression)
     if (graphMode) return copy(expression = closed, plotExpression = closed)
     val result = try {
-        formatNumber(ExpressionEvaluator.evaluate(closed))
+        formatNumber(ExpressionEvaluator.evaluate(closed, degrees = degrees))
     } catch (e: Exception) {
         ERROR_TEXT
     }
@@ -76,7 +121,9 @@ private fun CalcState.append(key: String): CalcState {
     val last = expr.lastOrNull()
 
     var toAppend = when (key) {
-        "sin", "cos", "tan", "ln", "log", "√" -> "$key("
+        in FUNCTION_KEYS -> "$key("
+        "x²" -> "^2"
+        "x⁻¹" -> "^(-1)"
         else -> key
     }
 
@@ -96,7 +143,10 @@ private fun CalcState.append(key: String): CalcState {
 
     // Pós-fixos e fechamento não fazem sentido sem operando à esquerda.
     if ((last == null || last == '(') && key in NEEDS_OPERAND) return state
-    if (last != null && last in BINARY_OPERATORS && key in setOf("%", "!", ")")) return state
+    // Pós-fixos logo depois de um operador ("5+!") não têm sobre o que agir;
+    // já um operador binário ali substitui o anterior (tratado mais abaixo).
+    if (last != null && last in BINARY_OPERATORS && key in POSTFIX_KEYS) return state
+    if (expr.endsWith("mod") && key in NEEDS_OPERAND) return state
     // Só fecha parêntese que esteja aberto.
     if (key == ")" && expr.count { it == '(' } <= expr.count { it == ')' }) return state
 
@@ -121,6 +171,18 @@ private fun CalcState.append(key: String): CalcState {
 private fun CalcState.appendLimited(text: String): CalcState =
     if (expression.length + text.length <= MAX_LENGTH) copy(expression = expression + text) else this
 
-/** Troca os operadores ASCII pelos símbolos usados no visor. */
+/**
+ * Troca a notação interna pela do visor: × e ÷, vírgula decimal (pt-BR) e
+ * os nomes das funções inversas.
+ */
 fun prettyExpression(expression: String): String =
-    expression.replace('*', '×').replace('/', '÷')
+    expression
+        .replace("asin(", "sin⁻¹(")
+        .replace("acos(", "cos⁻¹(")
+        .replace("atan(", "tan⁻¹(")
+        .replace("abs(", "|x|(")
+        .replace("^(-1)", "⁻¹")
+        .replace("mod", " mod ")
+        .replace('*', '×')
+        .replace('/', '÷')
+        .replace('.', ',')

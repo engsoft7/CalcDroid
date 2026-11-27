@@ -20,7 +20,7 @@ import kotlin.math.tan
  *
  * Gramática (precedência do mais fraco ao mais forte):
  *   expressão := termo (('+' | '-') termo)*
- *   termo     := unário (('*' | '/') unário | unário-implícito)*   // 7(8*5), 2π, 3sin(30)
+ *   termo     := unário (('*' | '/' | 'mod') unário | unário-implícito)*  // 7(8*5), 2π
  *   unário    := ('-' | '+') unário | potência
  *   potência  := pósfixo ('^' unário)?                             // associativa à direita
  *   pósfixo   := átomo ('!' | '%')*                                // fatorial e porcentagem
@@ -29,15 +29,21 @@ import kotlin.math.tan
  *   função    := nome '(' expressão ')'                            // sin(30)^2 = (sin 30)²
  *              | nome unário                                       // √16^2 = √(16²)
  *
- * As funções trigonométricas recebem o ângulo em graus. Expressões
- * malformadas lançam IllegalArgumentException.
+ * Porcentagem como nas calculadoras de celular: somada ou subtraída, ela é
+ * uma fração do que vem antes (100-10% = 90, 50+10% = 55); em qualquer outro
+ * lugar vale /100 (50*10% = 5, 10% = 0,1).
+ *
+ * As funções trigonométricas usam graus ou radianos conforme [degrees].
+ * Expressões malformadas lançam IllegalArgumentException.
  */
 object ExpressionEvaluator {
 
-    private val FUNCTIONS = listOf("sin", "cos", "tan", "log", "ln", "√")
+    // "asin" antes de "sin" não é preciso (a busca é pela posição atual), mas
+    // as inversas ficam juntas para leitura.
+    private val FUNCTIONS = listOf("asin", "acos", "atan", "abs", "sin", "cos", "tan", "log", "ln", "√")
 
-    fun evaluate(expression: String, xValue: Double = Double.NaN): Double {
-        val parser = Parser(expression.replace(" ", ""), xValue)
+    fun evaluate(expression: String, xValue: Double = Double.NaN, degrees: Boolean = true): Double {
+        val parser = Parser(expression.replace(" ", ""), xValue, degrees)
         val value = parser.parseExpression()
         if (!parser.atEnd()) {
             throw IllegalArgumentException("Símbolo inesperado em '${parser.rest()}'")
@@ -45,8 +51,14 @@ object ExpressionEvaluator {
         return value
     }
 
-    private class Parser(private val text: String, private val xValue: Double) {
+    private class Parser(
+        private val text: String,
+        private val xValue: Double,
+        private val degrees: Boolean
+    ) {
         private var pos = 0
+        // O último pós-fixo lido foi um '%', e nada (^, *, /) veio depois dele.
+        private var lastWasPercent = false
 
         fun atEnd() = pos >= text.length
         fun rest(): String = text.substring(pos)
@@ -55,25 +67,40 @@ object ExpressionEvaluator {
         fun parseExpression(): Double {
             var value = parseTerm()
             while (true) {
-                when (peek()) {
-                    '+' -> { pos++; value += parseTerm() }
-                    '-' -> { pos++; value -= parseTerm() }
+                val sign = when (peek()) {
+                    '+' -> 1.0
+                    '-' -> -1.0
                     else -> return value
                 }
+                pos++
+                val term = parseTerm()
+                // a ± b% vira a ± a·b/100 (term já vem dividido por 100).
+                value += sign * if (lastWasPercent) value * term else term
+                lastWasPercent = false
             }
         }
 
         private fun parseTerm(): Double {
             var value = parseUnary()
+            var percentOnly = lastWasPercent
             while (true) {
-                val c = peek() ?: return value
+                val c = peek() ?: break
                 when {
                     c == '*' -> { pos++; value *= parseUnary() }
                     c == '/' -> { pos++; value /= parseUnary() }
+                    text.startsWith("mod", pos) -> {
+                        pos += 3
+                        val divisor = parseUnary()
+                        // Resto com o sinal do divisor, como na matemática (-7 mod 3 = 2).
+                        value = value - divisor * kotlin.math.floor(value / divisor)
+                    }
                     startsFactor(c) -> value *= parseUnary()
-                    else -> return value
+                    else -> break
                 }
+                percentOnly = false
             }
+            lastWasPercent = percentOnly
+            return value
         }
 
         // Um novo fator pode começar neste caractere? (multiplicação implícita)
@@ -90,20 +117,25 @@ object ExpressionEvaluator {
             val base = parsePostfix()
             if (peek() == '^') {
                 pos++
-                return base.pow(parseUnary())
+                val result = base.pow(parseUnary())
+                lastWasPercent = false
+                return result
             }
             return base
         }
 
         private fun parsePostfix(): Double {
             var value = parseAtom()
+            var percent = false
             while (true) {
                 when (peek()) {
-                    '!' -> { pos++; value = factorial(value) }
-                    '%' -> { pos++; value /= 100 }
-                    else -> return value
+                    '!' -> { pos++; value = factorial(value); percent = false }
+                    '%' -> { pos++; value /= 100; percent = true }
+                    else -> break
                 }
             }
+            lastWasPercent = percent
+            return value
         }
 
         private fun parseAtom(): Double {
@@ -147,6 +179,9 @@ object ExpressionEvaluator {
                 ?: throw IllegalArgumentException("Número inválido: $token")
         }
 
+        private fun toRadians(angle: Double) = if (degrees) Math.toRadians(angle) else angle
+        private fun fromRadians(angle: Double) = if (degrees) Math.toDegrees(angle) else angle
+
         private fun parseFunction(): Double {
             for (name in FUNCTIONS) {
                 if (text.startsWith(name, pos)) {
@@ -164,10 +199,15 @@ object ExpressionEvaluator {
                     } else {
                         parseUnary()
                     }
+                    lastWasPercent = false
                     return when (name) {
-                        "sin" -> sin(Math.toRadians(arg))
-                        "cos" -> cos(Math.toRadians(arg))
-                        "tan" -> tan(Math.toRadians(arg))
+                        "sin" -> sin(toRadians(arg))
+                        "cos" -> cos(toRadians(arg))
+                        "tan" -> tan(toRadians(arg))
+                        "asin" -> fromRadians(kotlin.math.asin(arg))
+                        "acos" -> fromRadians(kotlin.math.acos(arg))
+                        "atan" -> fromRadians(kotlin.math.atan(arg))
+                        "abs" -> abs(arg)
                         "log" -> log10(arg)
                         "ln" -> ln(arg)
                         else -> sqrt(arg)

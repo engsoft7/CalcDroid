@@ -22,19 +22,11 @@ O ícone e o gráfico de destaque são gerados por
 
 ### Capturas de tela
 
-A Play exige pelo menos 2 capturas de telefone (lado menor ≥ 320 px, lado
-maior no máximo o dobro do menor e sem transparência; o ideal é capturar
-direto do aparelho, ex.: 1080×2160). Sugestão de conjunto, uma por modo:
-
-1. Modo básico com uma conta no display (ex.: `1234+567`).
-2. Modo científico com uma expressão completa (ex.: `2sin(30)+√(16)^2`).
-3. Modo gráfico plotando `x^2`.
-4. Modo matrizes exibindo o resultado de `A×B` (3×3).
-
-Salve em `listing/pt-BR/images/phoneScreenshots/` como `01-basica.png`,
-`02-cientifica.png` etc.: são enviadas em ordem alfabética e substituem as
-que estão na loja. Enquanto a pasta estiver vazia, as capturas atuais da Play
-ficam como estão.
+As 4 capturas em `listing/pt-BR/images/phoneScreenshots/` (1080×2160) foram
+renderizadas a partir do próprio app (básica, científica, gráfico em radianos
+e modo escuro). São enviadas em ordem alfabética e substituem as que estão na
+loja quando a ficha é publicada. Para trocar, salve novas imagens ali (lado
+menor ≥ 320 px, lado maior no máximo o dobro do menor, sem transparência).
 
 ## Demais campos do Play Console
 
