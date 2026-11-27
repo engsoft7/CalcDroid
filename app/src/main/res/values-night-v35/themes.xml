@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Modo escuro em edge-to-edge (API 35+): fundo escuro atrás das barras,
+         então os ícones do sistema ficam claros. Ver values-v35/themes.xml. -->
+    <style name="Theme.CalcDroid" parent="android:Theme.DeviceDefault.NoActionBar">
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar">false</item>
+    </style>
+</resources>

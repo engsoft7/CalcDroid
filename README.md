@@ -188,14 +188,14 @@ sido enviado à mão — o que já foi feito.
    Para desligar a release automática, crie a variável de repositório
    `AUTO_RELEASE` com o valor `false`.
 
-O AAB vai para a faixa **teste interno** (`internal`). Para mudar o padrão,
-crie a variável de repositório `PLAY_TRACK` (*Settings → Secrets and
-variables → Actions → Variables*) com `internal`, `alpha`, `beta`,
-`production` ou `none` (não enviar). Na execução manual (*Actions → Release →
-Run workflow*) a faixa é escolhida na hora.
+O AAB vai **direto para produção**, para todos os usuários (depois da
+revisão da Play). Para mudar o padrão, crie a variável de repositório
+`PLAY_TRACK` (*Settings → Secrets and variables → Actions → Variables*) com
+`internal`, `alpha`, `beta`, `production` ou `none` (não enviar). Na execução
+manual (*Actions → Release → Run workflow*) a faixa é escolhida na hora.
 
-Do teste interno, a versão é promovida para produção no próprio Play Console
-(*Teste interno → Promover versão*), depois de conferir no aparelho.
+Com `PLAY_TRACK=internal`, a versão fica no teste interno e é promovida depois
+por *Actions → Promover versão na Play* (ou no Play Console).
 
 ### Problemas comuns
 

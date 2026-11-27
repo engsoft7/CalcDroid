@@ -26,16 +26,19 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Configurar JDK 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: "17"
 
       - name: Configurar Gradle
-        uses: gradle/actions/setup-gradle@v4
+        uses: gradle/actions/setup-gradle@v6
+        with:
+          # Cache open source do GitHub Actions; o padrão da v6 é um serviço comercial.
+          cache-provider: basic
 
       # assembleDebug não precisa do keystore e já roda o aapt2 em todos os
       # recursos, que é onde moram os erros de ícone/drawable.
@@ -77,7 +80,7 @@ jobs:
 
       - name: Publicar relatório dos testes
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: test-results
           path: app/build/reports/tests/

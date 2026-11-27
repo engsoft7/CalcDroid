@@ -2,9 +2,9 @@ O CalcDroid é uma calculadora completa, leve e sem anúncios. Tudo funciona off
 
 QUATRO MODOS EM UM SÓ APP
 
-• Básica — as quatro operações e porcentagem, com display que mostra a expressão inteira enquanto você digita.
+• Básica — as quatro operações, porcentagem como no celular (100 − 10% = 90) e memória (MC, MR, M+, M−), com display que mostra a expressão inteira enquanto você digita.
 
-• Científica — seno, cosseno e tangente (em graus), logaritmos (log e ln), raiz quadrada, potências, fatorial e as constantes π e e. Escreva expressões completas, como 2sin(30) + √16^2, com multiplicação implícita e parênteses.
+• Científica — seno, cosseno, tangente e suas inversas, em graus ou radianos; logaritmos (log e ln), raiz quadrada, x², 1/x, módulo |x|, resto da divisão (mod), potências, fatorial e as constantes π e e. Escreva expressões completas, como 2sin(30) + √16^2, com multiplicação implícita e parênteses.
 
 • Gráfico — digite f(x) e veja a curva na hora, com eixos, grade e ajuste automático da escala vertical. Ótimo para estudar funções.
 
@@ -12,7 +12,8 @@ QUATRO MODOS EM UM SÓ APP
 
 FEITO PARA O DIA A DIA
 
-• Interface limpa em Material Design, com botões grandes e resposta imediata.
+• Interface limpa, com botões grandes, vibração leve ao tocar e modo escuro automático.
+• Histórico das contas: toque numa delas para usá-la de novo.
 • Funciona com a tela em pé ou deitada, e o estado é preservado ao girar: nada se perde no meio da conta.
 • Continue calculando em cima do resultado anterior, como numa calculadora de verdade.
 • Compatível com o leitor de tela TalkBack.

@@ -1,8 +1,8 @@
 name: Release
 
 # Ao criar uma tag v* (ex.: v1.0), compila o APK e o AAB de release, anexa os
-# dois na Release do GitHub e envia o AAB para a Play Store (faixa "internal"
-# por padrão; ver README). Também pode ser disparado manualmente (aba
+# dois na Release do GitHub e envia o AAB para a Play Store (direto para
+# produção por padrão; ver README). Também pode ser disparado manualmente (aba
 # Actions > Release > Run workflow) informando a tag, que é criada junto com
 # a release, e a faixa da Play.
 on:
@@ -18,12 +18,12 @@ on:
         description: "Faixa da Play Store para o AAB (none = não enviar)"
         type: choice
         options:
+          - production
           - internal
           - alpha
           - beta
-          - production
           - none
-        default: internal
+        default: production
 
 permissions:
   contents: write
@@ -40,11 +40,11 @@ jobs:
       RELEASE_TAG: ${{ github.event.inputs.tag || github.ref_name }}
       # Faixa da Play: a escolhida na execução manual; num push de tag, a
       # variável de repositório PLAY_TRACK (Settings > Secrets and variables >
-      # Actions > Variables), ou "internal" se ela não existir.
-      PLAY_TRACK: ${{ github.event.inputs.play_track || vars.PLAY_TRACK || 'internal' }}
+      # Actions > Variables), ou "production" se ela não existir.
+      PLAY_TRACK: ${{ github.event.inputs.play_track || vars.PLAY_TRACK || 'production' }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       # A Play recusa um versionCode já usado, e o nome dos arquivos sai da
       # tag; uma tag que não bate com o versionName quase sempre é esquecimento
@@ -59,13 +59,16 @@ jobs:
           fi
 
       - name: Configurar JDK 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: "17"
 
       - name: Configurar Gradle
-        uses: gradle/actions/setup-gradle@v4
+        uses: gradle/actions/setup-gradle@v6
+        with:
+          # Cache open source do GitHub Actions; o padrão da v6 é um serviço comercial.
+          cache-provider: basic
 
       # Secrets do repositório (Settings > Secrets and variables > Actions):
       #   KEYSTORE_BASE64   - o .jks inteiro em base64 (recomendado)
@@ -159,7 +162,7 @@ jobs:
           fi
 
       - name: Publicar na Release do GitHub
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ env.RELEASE_TAG }}
           files: |
