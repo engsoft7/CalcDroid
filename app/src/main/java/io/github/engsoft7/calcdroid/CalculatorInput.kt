@@ -172,10 +172,10 @@ private fun CalcState.appendLimited(text: String): CalcState =
     if (expression.length + text.length <= MAX_LENGTH) copy(expression = expression + text) else this
 
 /**
- * Troca a notação interna pela do visor: × e ÷, vírgula decimal (pt-BR) e
+ * Troca a notação interna pela do visor: × e ÷, o separador decimal do idioma e
  * os nomes das funções inversas.
  */
-fun prettyExpression(expression: String): String =
+fun prettyExpression(expression: String, decimalSep: Char = ','): String =
     expression
         .replace("asin(", "sin⁻¹(")
         .replace("acos(", "cos⁻¹(")
@@ -185,4 +185,4 @@ fun prettyExpression(expression: String): String =
         .replace("mod", " mod ")
         .replace('*', '×')
         .replace('/', '÷')
-        .replace('.', ',')
+        .replace('.', decimalSep)

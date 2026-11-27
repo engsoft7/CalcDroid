@@ -85,4 +85,34 @@ object MatrixOps {
         }
         return Array(n) { i -> DoubleArray(n) { j -> m[i][j + n] } }
     }
+
+    /**
+     * Resolve o sistema A·x = b por eliminação de Gauss com pivô parcial.
+     * Retorna null quando A é singular (sem solução única).
+     */
+    fun solve(a: Array<DoubleArray>, b: DoubleArray): DoubleArray? {
+        val n = a.size
+        val m = Array(n) { i -> DoubleArray(n + 1) { j -> if (j < n) a[i][j] else b[i] } }
+        for (col in 0 until n) {
+            var pivot = col
+            for (row in col + 1 until n) {
+                if (abs(m[row][col]) > abs(m[pivot][col])) pivot = row
+            }
+            if (abs(m[pivot][col]) < 1e-12) return null
+            if (pivot != col) {
+                val tmp = m[pivot]; m[pivot] = m[col]; m[col] = tmp
+            }
+            for (row in col + 1 until n) {
+                val factor = m[row][col] / m[col][col]
+                for (j in col..n) m[row][j] -= factor * m[col][j]
+            }
+        }
+        val x = DoubleArray(n)
+        for (i in n - 1 downTo 0) {
+            var sum = m[i][n]
+            for (j in i + 1 until n) sum -= m[i][j] * x[j]
+            x[i] = sum / m[i][i]
+        }
+        return x
+    }
 }

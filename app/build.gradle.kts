@@ -22,8 +22,8 @@ android {
         applicationId = "io.github.engsoft7.calcdroid"
         minSdk = 24
         targetSdk = 37
-        versionCode = 22
-        versionName = "1.19"
+        versionCode = 23
+        versionName = "1.20"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -62,6 +62,10 @@ android {
     buildFeatures {
         compose = true
     }
+    // Os testes de tela (Robolectric) precisam dos recursos do app.
+    testOptions {
+        unitTests.isIncludeAndroidResources = true
+    }
 }
 
 dependencies {
@@ -75,6 +79,11 @@ dependencies {
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
     testImplementation(libs.junit)
+    // Testes de tela sem emulador: Robolectric + Compose UI test.
+    testImplementation(libs.robolectric)
+    testImplementation(libs.androidx.junit)
+    testImplementation(platform(libs.androidx.compose.bom))
+    testImplementation(libs.androidx.ui.test.junit4)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(platform(libs.androidx.compose.bom))

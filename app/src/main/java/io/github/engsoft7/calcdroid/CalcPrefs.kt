@@ -43,4 +43,21 @@ class CalcPrefs(context: Context) {
     var degrees: Boolean
         get() = prefs.getBoolean("degrees", true)
         set(value) = prefs.edit().putBoolean("degrees", value).apply()
+
+    /**
+     * Conta as contas feitas e diz quando pedir a avaliação na Play: uma
+     * única vez, depois de [REVIEW_AFTER] resultados (uso de verdade, não
+     * logo na primeira abertura).
+     */
+    fun countCalculationAndCheckReview(): Boolean {
+        if (prefs.getBoolean("review_asked", false)) return false
+        val count = prefs.getInt("calculations", 0) + 1
+        val ask = shouldAskReview(count)
+        prefs.edit().putInt("calculations", count).putBoolean("review_asked", ask).apply()
+        return ask
+    }
 }
+
+const val REVIEW_AFTER = 25
+
+fun shouldAskReview(calculations: Int): Boolean = calculations >= REVIEW_AFTER
