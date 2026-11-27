@@ -1,0 +1,72 @@
+name: Release automática
+
+# Quando chega ao master uma versão nova em app/build.gradle.kts (versionName
+# que ainda não tem tag), dispara o workflow Release com a tag v<versionName>.
+# Ele cria a tag e a Release do GitHub e envia o AAB para a Play Store, então
+# publicar uma versão vira: subir versionCode/versionName num PR e fazer merge.
+#
+# Para desligar, crie a variável de repositório AUTO_RELEASE com o valor
+# "false"; aí a release volta a ser só por tag ou execução manual.
+#
+# Ele dispara o Release por workflow_dispatch porque uma tag criada com o
+# GITHUB_TOKEN não inicia outros workflows; workflow_dispatch é a exceção.
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - app/build.gradle.kts
+
+permissions:
+  contents: read
+  actions: write
+
+concurrency:
+  group: auto-release
+  cancel-in-progress: false
+
+jobs:
+  auto-release:
+    if: vars.AUTO_RELEASE != 'false'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Ver se é uma versão nova
+        id: versao
+        run: |
+          NAME=$(sed -n 's/^ *versionName *= *"\(.*\)".*/\1/p' app/build.gradle.kts)
+          CODE=$(sed -n 's/^ *versionCode *= *\([0-9]*\).*/\1/p' app/build.gradle.kts)
+          if [ -z "$NAME" ] || [ -z "$CODE" ]; then
+            echo "::error::Nao encontrei versionName/versionCode em app/build.gradle.kts."
+            exit 1
+          fi
+          TAG="v$NAME"
+          echo "versionName=$NAME versionCode=$CODE tag=$TAG"
+          if git ls-remote --exit-code --tags origin "refs/tags/$TAG" > /dev/null; then
+            echo "A tag $TAG ja existe; nada a publicar (o build.gradle.kts mudou, mas a versao nao)."
+            exit 0
+          fi
+          # A Play recusa versionCode repetido: compara com o da última tag.
+          LAST=$(git tag --list 'v*' --sort=-v:refname | head -n1)
+          if [ -n "$LAST" ]; then
+            PREV=$(git show "$LAST:app/build.gradle.kts" 2>/dev/null | sed -n 's/^ *versionCode *= *\([0-9]*\).*/\1/p')
+            if [ -n "$PREV" ] && [ "$CODE" -le "$PREV" ]; then
+              echo "::error::versionName mudou para $NAME, mas versionCode ($CODE) nao e maior que o da $LAST ($PREV). Incremente o versionCode."
+              exit 1
+            fi
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Disparar o workflow Release
+        if: steps.versao.outputs.tag != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.versao.outputs.tag }}
+          TRACK: ${{ vars.PLAY_TRACK || 'internal' }}
+        run: |
+          gh workflow run release.yml --ref "$GITHUB_REF_NAME" -f tag="$TAG" -f play_track="$TRACK"
+          echo "::notice::Release $TAG disparada (Play: faixa $TRACK). Acompanhe em Actions > Release."

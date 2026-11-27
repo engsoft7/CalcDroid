@@ -1,5 +1,7 @@
 package io.github.engsoft7.calcdroid
 
+import android.content.ClipData
+import android.os.Build
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -8,6 +10,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -20,8 +23,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
@@ -34,6 +37,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -41,7 +45,6 @@ import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.runtime.toMutableStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
@@ -50,23 +53,108 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.ClipEntry
+import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.onLongClick
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.engsoft7.calcdroid.ui.theme.CalcDroidTheme
-import java.util.Locale
+import kotlinx.coroutines.launch
 import kotlin.math.abs
+import kotlin.math.sign
 
 const val MODE_BASIC = "basic"
 const val MODE_SCIENTIFIC = "sci"
 const val MODE_GRAPH = "graph"
 const val MODE_MATRIX = "matrix"
+
+private val SCIENTIFIC_ROWS = listOf(
+    listOf("sin", "cos", "tan", "√"),
+    listOf("ln", "log", "(", ")"),
+    listOf("π", "e", "^", "!")
+)
+private val GRAPH_ROWS = listOf(
+    listOf("sin", "cos", "tan", "√"),
+    listOf("ln", "log", "(", ")"),
+    listOf("π", "e", "^", "x")
+)
+private val BASIC_ROWS = listOf(
+    listOf("C", "⌫", "%", "/"),
+    listOf("7", "8", "9", "*"),
+    listOf("4", "5", "6", "-"),
+    listOf("1", "2", "3", "+"),
+    listOf("0", ".", "=")
+)
+
+// Rótulo exibido na tecla quando difere do código usado na expressão.
+private val KEY_LABELS = mapOf("*" to "×", "/" to "÷")
+
+// O que o TalkBack lê em cada tecla; dígitos são lidos como estão.
+private val KEY_DESCRIPTIONS = mapOf(
+    "C" to "Limpar",
+    "⌫" to "Apagar",
+    "%" to "Porcentagem",
+    "/" to "Dividir",
+    "*" to "Multiplicar",
+    "-" to "Menos",
+    "+" to "Mais",
+    "=" to "Igual",
+    "." to "Ponto decimal",
+    "^" to "Potência",
+    "√" to "Raiz quadrada",
+    "!" to "Fatorial",
+    "(" to "Abre parêntese",
+    ")" to "Fecha parêntese",
+    "π" to "Pi",
+    "e" to "Número de Euler",
+    "x" to "Variável x",
+    "sin" to "Seno",
+    "cos" to "Cosseno",
+    "tan" to "Tangente",
+    "ln" to "Logaritmo natural",
+    "log" to "Logaritmo na base 10"
+)
+
+private val CalcStateSaver = listSaver<CalcState, Any>(
+    save = { listOf(it.expression, it.lastExpression, it.justEvaluated, it.plotExpression) },
+    restore = {
+        CalcState(
+            expression = it[0] as String,
+            lastExpression = it[1] as String,
+            justEvaluated = it[2] as Boolean,
+            plotExpression = it[3] as String
+        )
+    }
+)
+
+/**
+ * Teclado de paisagem: as teclas científicas viram um bloco de 3 colunas à
+ * esquerda do teclado básico, alinhado por baixo, para que todas as linhas
+ * caibam na altura reduzida da tela deitada. Posições vazias são "".
+ */
+internal fun sideBySideRows(
+    extraRows: List<List<String>>,
+    basicRows: List<List<String>>
+): List<List<String>> {
+    val extra = extraRows.flatten().chunked(3)
+    val offset = basicRows.size - extra.size
+    val basicColumns = basicRows.maxOf { it.size }
+    return basicRows.mapIndexed { i, row ->
+        val left = extra.getOrNull(i - offset) ?: List(3) { "" }
+        left + row + List(basicColumns - row.size) { "" }
+    }
+}
 
 class MainActivity : ComponentActivity() {
     // Não chame enableEdgeToEdge() aqui. Com targetSdk 37 o sistema já aplica
@@ -74,7 +162,8 @@ class MainActivity : ComponentActivity() {
     // setStatusBarColor/setNavigationBarColor/setDecorFitsSystemWindows, que a
     // Play Console sinaliza como APIs descontinuadas. Sem a chamada, o R8
     // remove esse código e o aviso não aparece. Os insets continuam tratados
-    // pelo safeDrawingPadding() da tela.
+    // pelo safeDrawingPadding() da tela, e a cor dos ícones das barras vem do
+    // tema (res/values-v35/themes.xml).
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
@@ -99,17 +188,11 @@ fun BeautifulCalculatorScreen(
     mode: String = MODE_BASIC,
     onModeChange: (String) -> Unit = {}
 ) {
-    val clipboardManager = LocalClipboardManager.current
-    val context = LocalContext.current
-
     // ---- Estado da calculadora de expressões (básica/científico/gráfico),
-    // preservado ao girar a tela (rememberSaveable) ----
-    var expression by rememberSaveable { mutableStateOf("") }
-    var lastExpression by rememberSaveable { mutableStateOf("") }
-    // Após "=", um dígito ou função começa um cálculo novo; um operador
-    // continua a conta em cima do resultado exibido.
-    var justEvaluated by rememberSaveable { mutableStateOf(false) }
-    var plotExpression by rememberSaveable { mutableStateOf("") }
+    // preservado ao girar a tela (rememberSaveable). A lógica das teclas fica
+    // em CalculatorInput.kt. ----
+    var calc by rememberSaveable(stateSaver = CalcStateSaver) { mutableStateOf(CalcState()) }
+    val onKey: (String) -> Unit = { key -> calc = calc.press(key, graphMode = mode == MODE_GRAPH) }
 
     // ---- Estado do modo matriz (armazenado achatado 3×3; o 2×2 usa o
     // canto superior esquerdo, preservando os valores ao trocar o tamanho) ----
@@ -140,97 +223,6 @@ fun BeautifulCalculatorScreen(
         mutableStateOf<List<List<String>>?>(null)
     }
     var matrixMessage by rememberSaveable { mutableStateOf<String?>(null) }
-
-    fun onKey(button: String) {
-        when (button) {
-            "C" -> {
-                expression = ""
-                lastExpression = ""
-                plotExpression = ""
-                justEvaluated = false
-            }
-
-            "⌫" -> {
-                if (justEvaluated) {
-                    // Apagar em cima de um resultado passa a editá-lo; a linha
-                    // "... =" acima deixaria de corresponder ao que se vê.
-                    lastExpression = ""
-                }
-                justEvaluated = false
-                if (expression == "Erro") {
-                    expression = ""
-                    return
-                }
-                // Funções entram inteiras ("sin("), então saem inteiras
-                for (function in listOf("sin(", "cos(", "tan(", "log(", "ln(", "√(")) {
-                    if (expression.endsWith(function)) {
-                        expression = expression.dropLast(function.length)
-                        return
-                    }
-                }
-                expression = expression.dropLast(1)
-            }
-
-            "=" -> {
-                if (expression.isEmpty() || expression == "Erro") return
-                val closed = autoCloseParentheses(expression)
-                if (mode == MODE_GRAPH) {
-                    expression = closed
-                    plotExpression = closed
-                } else {
-                    val result = try {
-                        formatNumber(ExpressionEvaluator.evaluate(closed))
-                    } catch (e: Exception) {
-                        "Erro"
-                    }
-                    lastExpression = "$closed ="
-                    expression = result
-                    justEvaluated = true
-                }
-            }
-
-            else -> {
-                if (justEvaluated) {
-                    val continuesResult = button in setOf("+", "-", "*", "/", "^", "%", "!")
-                    if (expression == "Erro" || !continuesResult) {
-                        // Cálculo novo: some também a conta anterior, que só
-                        // faz sentido em cima do resultado que ela produziu.
-                        expression = ""
-                        lastExpression = ""
-                    }
-                    justEvaluated = false
-                }
-                var toAppend = when (button) {
-                    "sin", "cos", "tan", "ln", "log" -> "$button("
-                    "√" -> "√("
-                    else -> button
-                }
-                if (button == ".") {
-                    // Impede um segundo ponto no mesmo número
-                    val currentNumber = expression.takeLastWhile { it.isDigit() || it == '.' }
-                    if (currentNumber.contains('.')) return
-                    if (currentNumber.isEmpty()) toAppend = "0."
-                }
-                // "0" sozinho é substituído pelo dígito, evitando "007"
-                if (expression == "0" && button.length == 1 && button[0].isDigit()) {
-                    expression = button
-                    return
-                }
-                // Pós-fixos e fechamento não fazem sentido em expressão vazia
-                if (expression.isEmpty() && button in setOf("*", "/", "^", "%", "!", ")")) return
-                // Dois operadores seguidos: o novo substitui o anterior
-                if (button in setOf("+", "-", "*", "/", "^") &&
-                    expression.isNotEmpty() && expression.last() in "+-*/^"
-                ) {
-                    expression = expression.dropLast(1) + button
-                    return
-                }
-                if (expression.length + toAppend.length <= 60) {
-                    expression += toAppend
-                }
-            }
-        }
-    }
 
     fun runMatrixOp(op: String) {
         val n = matrixSize
@@ -310,7 +302,11 @@ fun BeautifulCalculatorScreen(
                     modifier = Modifier
                         .clip(RoundedCornerShape(20.dp))
                         .background(if (selected) Color(0xFFFFA500) else Color(0xFFDDDDDD))
-                        .clickable { onModeChange(id) }
+                        .selectable(
+                            selected = selected,
+                            role = Role.Tab,
+                            onClick = { onModeChange(id) }
+                        )
                         .padding(horizontal = 12.dp, vertical = 8.dp)
                 ) {
                     Text(
@@ -342,11 +338,15 @@ fun BeautifulCalculatorScreen(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(16.dp))
                                 .background(if (selected) Color(0xFF4A6572) else Color(0xFFDDDDDD))
-                                .clickable {
-                                    matrixSize = n
-                                    matrixResult = null
-                                    matrixMessage = null
-                                }
+                                .selectable(
+                                    selected = selected,
+                                    role = Role.RadioButton,
+                                    onClick = {
+                                        matrixSize = n
+                                        matrixResult = null
+                                        matrixMessage = null
+                                    }
+                                )
                                 .padding(horizontal = 14.dp, vertical = 6.dp)
                         ) {
                             Text(
@@ -378,7 +378,7 @@ fun BeautifulCalculatorScreen(
                                     .shadow(3.dp, RoundedCornerShape(12.dp))
                                     .clip(RoundedCornerShape(12.dp))
                                     .background(Color(0xFFFFA500))
-                                    .clickable { runMatrixOp(op) },
+                                    .clickable(role = Role.Button) { runMatrixOp(op) },
                                 contentAlignment = Alignment.Center
                             ) {
                                 Text(
@@ -444,143 +444,219 @@ fun BeautifulCalculatorScreen(
                     .weight(1f)
                     .fillMaxWidth()
             ) {
-                val spacing = 12.dp
-                val scientificRows = listOf(
-                    listOf("sin", "cos", "tan", "√"),
-                    listOf("ln", "log", "(", ")"),
-                    listOf("π", "e", "^", "!")
-                )
-                val graphRows = listOf(
-                    listOf("sin", "cos", "tan", "√"),
-                    listOf("ln", "log", "(", ")"),
-                    listOf("π", "e", "^", "x")
-                )
-                val basicRows = listOf(
-                    listOf("C", "⌫", "%", "/"),
-                    listOf("7", "8", "9", "*"),
-                    listOf("4", "5", "6", "-"),
-                    listOf("1", "2", "3", "+"),
-                    listOf("0", ".", "=")
-                )
-                val buttonRows = when (mode) {
-                    MODE_SCIENTIFIC -> scientificRows + basicRows
-                    MODE_GRAPH -> graphRows + basicRows
-                    else -> basicRows
+                val extraRows = when (mode) {
+                    MODE_SCIENTIFIC -> SCIENTIFIC_ROWS
+                    MODE_GRAPH -> GRAPH_ROWS
+                    else -> emptyList()
                 }
-                // Teclas quadradas quando a tela permite, mas nunca mais altas
-                // do que o espaço disponível (reservando área mínima para o
-                // display — ou para o gráfico), para nenhuma linha do teclado
-                // ficar cortada embaixo.
-                val rowCount = buttonRows.size
-                val reserved = if (mode == MODE_GRAPH) 200.dp else 100.dp
-                val cellWidth = (maxWidth - spacing * 3) / 4
-                val cellMaxHeight = (maxHeight - reserved - spacing * rowCount) / rowCount
-                val buttonHeight = minOf(cellWidth, cellMaxHeight).coerceAtLeast(40.dp)
-
-                Column(
-                    modifier = Modifier.fillMaxSize(),
-                    verticalArrangement = Arrangement.spacedBy(spacing)
-                ) {
-                    if (mode == MODE_GRAPH) {
-                        GraphArea(
-                            plotExpression = plotExpression,
-                            modifier = Modifier.weight(1f)
-                        )
-                        Box(
-                            modifier = Modifier.fillMaxWidth(),
-                            contentAlignment = Alignment.CenterEnd
-                        ) {
-                            val graphText = expression.ifEmpty { "..." }
-                            Text(
-                                text = "f(x) = $graphText",
-                                maxLines = 1,
-                                fontSize = when {
-                                    graphText.length <= 18 -> 24.sp
-                                    graphText.length <= 34 -> 16.sp
-                                    else -> 12.sp
-                                },
-                                fontWeight = FontWeight.Light,
-                                color = Color.Black
-                            )
-                        }
+                if (maxWidth > maxHeight) {
+                    // Paisagem (ou janela larga e baixa): visor/gráfico à
+                    // esquerda e teclado à direita. Empilhados, as 8 linhas do
+                    // modo científico não cabem na altura e as últimas
+                    // (com o "=") ficavam fora da tela.
+                    val rows = if (extraRows.isEmpty()) {
+                        BASIC_ROWS
                     } else {
-                        // Display ocupa o espaço restante, ancorando o teclado embaixo
-                        val displayText = expression.ifEmpty { "0" }
-                        Box(
+                        sideBySideRows(extraRows, BASIC_ROWS)
+                    }
+                    Row(
+                        modifier = Modifier.fillMaxSize(),
+                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        CalcScreenArea(
+                            mode = mode,
+                            calc = calc,
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxHeight()
+                        )
+                        Keypad(
+                            rows = rows,
+                            onKey = onKey,
+                            modifier = Modifier
+                                .weight(if (extraRows.isEmpty()) 1f else 1.5f)
+                                .fillMaxHeight(),
+                            spacing = 8.dp,
+                            compact = true
+                        )
+                    }
+                } else {
+                    val spacing = 12.dp
+                    val rows = extraRows + BASIC_ROWS
+                    // Teclas quadradas quando a tela permite, mas nunca mais
+                    // altas do que o espaço disponível (reservando área mínima
+                    // para o display — ou para o gráfico), para nenhuma linha
+                    // do teclado ficar cortada embaixo.
+                    val rowCount = rows.size
+                    val reserved = if (mode == MODE_GRAPH) 200.dp else 100.dp
+                    val cellWidth = (maxWidth - spacing * 3) / 4
+                    val cellMaxHeight = (maxHeight - reserved - spacing * rowCount) / rowCount
+                    val buttonHeight = minOf(cellWidth, cellMaxHeight).coerceAtLeast(40.dp)
+
+                    Column(
+                        modifier = Modifier.fillMaxSize(),
+                        verticalArrangement = Arrangement.spacedBy(spacing)
+                    ) {
+                        CalcScreenArea(
+                            mode = mode,
+                            calc = calc,
                             modifier = Modifier
                                 .weight(1f)
                                 .fillMaxWidth()
-                                .pointerInput(displayText) {
-                                    detectTapGestures(
-                                        onLongPress = {
-                                            clipboardManager.setText(AnnotatedString(displayText))
-                                            Toast.makeText(context, "Copiado!", Toast.LENGTH_SHORT).show()
-                                        }
-                                    )
-                                },
-                            contentAlignment = Alignment.BottomEnd
-                        ) {
-                            Column(horizontalAlignment = Alignment.End) {
-                                if (lastExpression.isNotEmpty()) {
-                                    Text(
-                                        text = lastExpression,
-                                        fontSize = 18.sp,
-                                        color = Color.Gray,
-                                        maxLines = 1
-                                    )
-                                }
-                                Text(
-                                    text = displayText,
-                                    textAlign = TextAlign.End,
-                                    maxLines = 3,
-                                    // Fonte diminui conforme a expressão cresce,
-                                    // para não estourar a largura do display.
-                                    fontSize = when {
-                                        displayText.length <= 9 -> 60.sp
-                                        displayText.length <= 14 -> 44.sp
-                                        displayText.length <= 24 -> 32.sp
-                                        displayText.length <= 40 -> 24.sp
-                                        else -> 20.sp
-                                    },
-                                    fontWeight = FontWeight.Light,
-                                    color = Color.Black
-                                )
-                            }
-                        }
+                        )
+                        Keypad(
+                            rows = rows,
+                            onKey = onKey,
+                            rowHeight = buttonHeight,
+                            spacing = spacing
+                        )
                     }
+                }
+            }
+        }
+    }
+}
 
-                    // Buttons
-                    buttonRows.forEach { row ->
-                        Row(
+/** Visor da conta ou, no modo gráfico, o gráfico com a f(x) embaixo. */
+@Composable
+fun CalcScreenArea(mode: String, calc: CalcState, modifier: Modifier = Modifier) {
+    if (mode == MODE_GRAPH) {
+        Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            GraphArea(
+                plotExpression = calc.plotExpression,
+                modifier = Modifier.weight(1f)
+            )
+            Box(
+                modifier = Modifier.fillMaxWidth(),
+                contentAlignment = Alignment.CenterEnd
+            ) {
+                val graphText = prettyExpression(calc.expression).ifEmpty { "..." }
+                Text(
+                    text = "f(x) = $graphText",
+                    maxLines = 1,
+                    fontSize = when {
+                        graphText.length <= 18 -> 24.sp
+                        graphText.length <= 34 -> 16.sp
+                        else -> 12.sp
+                    },
+                    fontWeight = FontWeight.Light,
+                    color = Color.Black
+                )
+            }
+        }
+    } else {
+        ExpressionDisplay(calc = calc, modifier = modifier)
+    }
+}
+
+@Composable
+fun ExpressionDisplay(calc: CalcState, modifier: Modifier = Modifier) {
+    val clipboard = LocalClipboard.current
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    // Copia o texto cru (com * e /), que outros apps entendem melhor do que
+    // os símbolos × e ÷ do visor.
+    val rawText = calc.expression.ifEmpty { "0" }
+    val displayText = prettyExpression(rawText)
+
+    fun copyToClipboard() {
+        scope.launch {
+            clipboard.setClipEntry(ClipEntry(ClipData.newPlainText("CalcDroid", rawText)))
+        }
+        // Do Android 13 em diante o próprio sistema confirma a cópia; um
+        // Toast ali só duplicaria o aviso.
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+            Toast.makeText(context, "Copiado!", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    // Display ocupa o espaço restante, ancorando o teclado embaixo
+    Box(
+        modifier = modifier
+            .pointerInput(rawText) {
+                detectTapGestures(onLongPress = { copyToClipboard() })
+            }
+            // Mesma ação para quem usa TalkBack (toque duplo e segurar).
+            .semantics {
+                onLongClick(label = "Copiar") {
+                    copyToClipboard()
+                    true
+                }
+            },
+        contentAlignment = Alignment.BottomEnd
+    ) {
+        Column(horizontalAlignment = Alignment.End) {
+            if (calc.lastExpression.isNotEmpty()) {
+                Text(
+                    text = prettyExpression(calc.lastExpression),
+                    fontSize = 18.sp,
+                    color = Color.Gray,
+                    maxLines = 1
+                )
+            }
+            Text(
+                text = displayText,
+                textAlign = TextAlign.End,
+                maxLines = 3,
+                // Fonte diminui conforme a expressão cresce,
+                // para não estourar a largura do display.
+                fontSize = when {
+                    displayText.length <= 9 -> 60.sp
+                    displayText.length <= 14 -> 44.sp
+                    displayText.length <= 24 -> 32.sp
+                    displayText.length <= 40 -> 24.sp
+                    else -> 20.sp
+                },
+                fontWeight = FontWeight.Light,
+                color = Color.Black
+            )
+        }
+    }
+}
+
+/**
+ * Grade de teclas. Com [rowHeight] as linhas têm altura fixa (retrato); sem
+ * ele, dividem igualmente a altura disponível (paisagem). Posições "" ficam
+ * vazias, e linhas mais curtas são completadas para manter a largura de
+ * tecla igual em todas.
+ */
+@Composable
+fun Keypad(
+    rows: List<List<String>>,
+    onKey: (String) -> Unit,
+    modifier: Modifier = Modifier,
+    rowHeight: Dp? = null,
+    spacing: Dp = 12.dp,
+    compact: Boolean = false
+) {
+    val columns = rows.maxOf { it.size }
+    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(spacing)) {
+        rows.forEach { row ->
+            val rowModifier = if (rowHeight != null) {
+                Modifier.height(rowHeight)
+            } else {
+                Modifier.weight(1f)
+            }
+            Row(
+                modifier = rowModifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(spacing)
+            ) {
+                row.forEach { key ->
+                    if (key.isEmpty()) {
+                        Spacer(modifier = Modifier.weight(1f))
+                    } else {
+                        CalculatorButton(
+                            key = key,
+                            compact = compact,
                             modifier = Modifier
-                                .fillMaxWidth()
-                                .height(buttonHeight),
-                            horizontalArrangement = Arrangement.spacedBy(spacing)
-                        ) {
-                            row.forEach { button ->
-                                val buttonColor = when (button) {
-                                    "+", "-", "*", "/", "=", "%", "^" -> Color(0xFFFFA500) // Laranja para operadores
-                                    "C", "⌫" -> Color(0xFFD3D3D3) // Cinza claro para C e apagar
-                                    "sin", "cos", "tan", "√", "ln", "log",
-                                    "π", "e", "x", "(", ")", "!" -> Color(0xFF4A6572) // Azul acinzentado para funções
-                                    else -> Color.White // Branco para números
-                                }
-                                CalculatorButton(
-                                    text = button,
-                                    buttonColor = buttonColor,
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .fillMaxHeight(),
-                                    onClick = { onKey(button) }
-                                )
-                            }
-                            // Completa a última linha (3 teclas) mantendo a mesma
-                            // largura de tecla das demais linhas.
-                            if (row.size < 4) {
-                                Spacer(modifier = Modifier.weight((4 - row.size).toFloat()))
-                            }
-                        }
+                                .weight(1f)
+                                .fillMaxHeight(),
+                            onClick = { onKey(key) }
+                        )
                     }
+                }
+                repeat(columns - row.size) {
+                    Spacer(modifier = Modifier.weight(1f))
                 }
             }
         }
@@ -605,18 +681,7 @@ fun GraphArea(plotExpression: String, modifier: Modifier = Modifier) {
             }
         }
     }
-    // Faixa vertical ajustada aos valores amostrados (sempre incluindo o
-    // eixo x e limitada a ±100 para funções que explodem, como tan)
-    val finiteYs = samples.map { it.second }.filter { it.isFinite() && abs(it) <= 1e6 }
-    var yLo = (finiteYs.minOrNull() ?: -5.0).coerceIn(-100.0, 0.0)
-    var yHi = (finiteYs.maxOrNull() ?: 5.0).coerceIn(0.0, 100.0)
-    if (yHi - yLo < 2.0) {
-        yLo -= 1.0
-        yHi += 1.0
-    }
-    val padY = (yHi - yLo) * 0.08
-    yLo -= padY
-    yHi += padY
+    val (yLo, yHi) = remember(samples) { graphYRange(samples.map { it.second }) }
 
     Box(
         modifier = modifier
@@ -652,17 +717,26 @@ fun GraphArea(plotExpression: String, modifier: Modifier = Modifier) {
                 val span = yHi - yLo
                 val path = Path()
                 var penDown = false
+                var prevY = Double.NaN
                 for ((x, y) in samples) {
-                    // Levanta a "caneta" em descontinuidades (NaN ou saltos de
-                    // assíntota, como em tan), para não ligar os dois ramos
-                    if (y.isFinite() && y > yLo - span && y < yHi + span) {
+                    // Levanta a "caneta" em descontinuidades: NaN, pontos muito
+                    // fora da tela e saltos de assíntota (como em tan), em que o
+                    // sinal troca de um ponto para o outro com uma diferença
+                    // maior do que a altura inteira do gráfico.
+                    val inRange = y.isFinite() && y > yLo - span && y < yHi + span
+                    val jump = penDown && abs(y - prevY) > span && sign(y) != sign(prevY)
+                    if (inRange && !jump) {
                         val fx = px(x)
                         val fy = py(y)
                         if (penDown) path.lineTo(fx, fy) else path.moveTo(fx, fy)
                         penDown = true
+                    } else if (inRange) {
+                        path.moveTo(px(x), py(y))
+                        penDown = true
                     } else {
                         penDown = false
                     }
+                    prevY = y
                 }
                 drawPath(
                     path = path,
@@ -684,13 +758,13 @@ fun GraphArea(plotExpression: String, modifier: Modifier = Modifier) {
             )
         } else {
             Text(
-                text = String.format(Locale.US, "%.1f", yHi),
+                text = axisLabel(yHi),
                 modifier = Modifier.align(Alignment.TopStart).padding(6.dp),
                 color = Color.Gray,
                 fontSize = 11.sp
             )
             Text(
-                text = String.format(Locale.US, "%.1f", yLo),
+                text = axisLabel(yLo),
                 modifier = Modifier.align(Alignment.BottomStart).padding(6.dp),
                 color = Color.Gray,
                 fontSize = 11.sp
@@ -724,7 +798,11 @@ fun MatrixGrid(label: String, size: Int, cells: MutableList<String>) {
                     MatrixCell(
                         value = cells[index],
                         onChange = { cells[index] = it },
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier
+                            .weight(1f)
+                            .semantics {
+                                contentDescription = "$label, linha ${i + 1}, coluna ${j + 1}"
+                            }
                     )
                 }
             }
@@ -763,25 +841,45 @@ fun MatrixCell(value: String, onChange: (String) -> Unit, modifier: Modifier = M
     )
 }
 
+private fun keyColor(key: String): Color = when (key) {
+    "+", "-", "*", "/", "=", "%", "^" -> Color(0xFFFFA500) // Laranja para operadores
+    "C", "⌫" -> Color(0xFFD3D3D3) // Cinza claro para C e apagar
+    "sin", "cos", "tan", "√", "ln", "log",
+    "π", "e", "x", "(", ")", "!" -> Color(0xFF4A6572) // Azul acinzentado para funções
+    else -> Color.White // Branco para números
+}
+
 @Composable
 fun CalculatorButton(
-    text: String,
-    buttonColor: Color,
+    key: String,
     modifier: Modifier = Modifier,
+    compact: Boolean = false,
     onClick: () -> Unit
 ) {
+    val buttonColor = keyColor(key)
+    val label = KEY_LABELS[key] ?: key
     Box(
         modifier = modifier
             .shadow(4.dp, RoundedCornerShape(16.dp)) // Sombra
             .clip(RoundedCornerShape(16.dp)) // Cantos arredondados
             .background(buttonColor) // Cor do botão
-            .clickable { onClick() },
+            .clickable(role = Role.Button, onClick = onClick)
+            // O TalkBack lê "Multiplicar, botão" em vez do símbolo "×".
+            .semantics { contentDescription = KEY_DESCRIPTIONS[key] ?: key },
         contentAlignment = Alignment.Center
     ) {
         Text(
-            text = text,
-            // Rótulos longos (sin, cos, log...) usam fonte menor para caber
-            fontSize = if (text.length > 2) 22.sp else 30.sp,
+            text = label,
+            // A descrição acima já fala pela tecla; o texto não é lido de novo.
+            modifier = Modifier.clearAndSetSemantics { },
+            // Rótulos longos (sin, cos, log...) usam fonte menor para caber;
+            // em paisagem as teclas são mais baixas, então tudo encolhe.
+            fontSize = when {
+                compact && label.length > 2 -> 16.sp
+                compact -> 22.sp
+                label.length > 2 -> 22.sp
+                else -> 30.sp
+            },
             fontWeight = FontWeight.Medium, // Fonte mais grossa
             color = if (buttonColor == Color.White) Color.Black else Color.White // Cor do texto
         )

@@ -11,7 +11,7 @@ Saídas:
   - app/src/main/res/mipmap-*/ic_launcher_foreground.png  (camada de frente)
   - app/src/main/res/mipmap-*/ic_launcher.png             (legado, quadrado)
   - app/src/main/res/mipmap-*/ic_launcher_round.png       (legado, redondo)
-  - play-store/ic_launcher-playstore.png                  (512x512, ficha da loja)
+  - play-store/listing/pt-BR/images/icon.png             (512x512, ficha da loja)
 
 Uso:
   pip install Pillow
@@ -207,8 +207,8 @@ for folder, (adaptive_px, legacy_px) in DENSITIES.items():
 
 print("Wrote adaptive foregrounds and legacy mipmaps for all densities.")
 
-store_dir = os.path.join(REPO, "play-store")
+store_dir = os.path.join(REPO, "play-store", "listing", "pt-BR", "images")
 os.makedirs(store_dir, exist_ok=True)
 store = centered(gradient(512).convert("RGBA"), scaled_glyph(512 * STORE_GLYPH_FRAC))
-store.convert("RGB").save(os.path.join(store_dir, "ic_launcher-playstore.png"))
+store.convert("RGB").save(os.path.join(store_dir, "icon.png"))
 print("Wrote Play Store 512x512 listing icon.")

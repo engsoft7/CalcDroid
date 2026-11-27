@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Da API 35 em diante o app é sempre edge-to-edge: as barras do sistema
+         ficam transparentes sobre o fundo claro da tela. O tema Light padrão
+         não liga os ícones escuros, e sem isto relógio, bateria e botões de
+         navegação saem brancos e somem no fundo. Antes da API 35 a barra de
+         status tem fundo escuro próprio, então lá os ícones brancos estão
+         certos e este arquivo não se aplica.
+         Estes atributos não são as APIs descontinuadas que a Play sinaliza
+         (statusBarColor/navigationBarColor). -->
+    <style name="Theme.CalcDroid" parent="android:Theme.DeviceDefault.Light.NoActionBar">
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowLightNavigationBar">true</item>
+    </style>
+</resources>

@@ -1,8 +1,8 @@
 package io.github.engsoft7.calcdroid
 
 import java.math.BigDecimal
+import java.math.MathContext
 import java.math.RoundingMode
-import java.util.Locale
 import kotlin.math.E
 import kotlin.math.PI
 import kotlin.math.abs
@@ -25,6 +25,7 @@ import kotlin.math.tan
  *   potência  := pósfixo ('^' unário)?                             // associativa à direita
  *   pósfixo   := átomo ('!' | '%')*                                // fatorial e porcentagem
  *   átomo     := número | π | e | x | '(' expressão ')' | função
+ *   número    := dígitos ('.' dígitos)? ('E' ('+' | '-')? dígitos)?    // 1.5E+12
  *   função    := nome '(' expressão ')'                            // sin(30)^2 = (sin 30)²
  *              | nome unário                                       // √16^2 = √(16²)
  *
@@ -130,6 +131,17 @@ object ExpressionEvaluator {
         private fun parseNumber(): Double {
             val start = pos
             while (peek()?.let { it.isDigit() || it == '.' } == true) pos++
+            // Notação científica, como nos resultados grandes ("1.5E+12"),
+            // para dar para continuar a conta em cima deles. Só o 'E'
+            // maiúsculo: o 'e' minúsculo é a constante de Euler.
+            if (peek() == 'E') {
+                var p = pos + 1
+                if (text.getOrNull(p) == '+' || text.getOrNull(p) == '-') p++
+                if (text.getOrNull(p)?.isDigit() == true) {
+                    pos = p
+                    while (peek()?.isDigit() == true) pos++
+                }
+            }
             val token = text.substring(start, pos)
             return token.toDoubleOrNull()
                 ?: throw IllegalArgumentException("Número inválido: $token")
@@ -192,7 +204,10 @@ fun factorial(n: Double): Double {
 fun formatNumber(value: Double): String {
     if (value.isNaN() || value.isInfinite()) return "Erro"
     if (abs(value) >= 1e12) {
-        return String.format(Locale.US, "%.6E", value)
+        // 7 algarismos significativos em notação científica, sem zeros
+        // sobrando: 1.234568E+12, 1E+15. O avaliador lê esse formato de
+        // volta, então dá para continuar a conta em cima do resultado.
+        return BigDecimal(value).round(MathContext(7)).stripTrailingZeros().toString()
     }
     return BigDecimal(value)
         .setScale(10, RoundingMode.HALF_UP)

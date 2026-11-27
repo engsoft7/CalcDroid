@@ -2,7 +2,7 @@
 """Gera o gráfico de destaque da ficha da Play Store (1024x500).
 
 Saída:
-  - play-store/feature-graphic.png
+  - play-store/listing/pt-BR/images/featureGraphic.png
 
 Reaproveita a arte do ícone: o mesmo degradê laranja e o mesmo glifo
 (tools/icon_glyph.png) usados por generate_launcher_icon.py. Ao mudar a
@@ -117,8 +117,8 @@ draw.rounded_rectangle(
     fill=TEXT_WHITE,
 )
 
-out_dir = os.path.join(REPO, "play-store")
+out_dir = os.path.join(REPO, "play-store", "listing", "pt-BR", "images")
 os.makedirs(out_dir, exist_ok=True)
-out = os.path.join(out_dir, "feature-graphic.png")
+out = os.path.join(out_dir, "featureGraphic.png")
 im.save(out)
 print(f"Wrote {out} ({W}x{H}).")
