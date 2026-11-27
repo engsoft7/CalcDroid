@@ -171,12 +171,22 @@ sido enviado à mão — o que já foi feito.
    (até 500 caracteres). O nome do arquivo segue o idioma da ficha da loja;
    se o idioma padrão no Play Console for outro, renomeie (ex.:
    `whatsnew-en-US`).
-3. Faça commit e crie a tag:
+3. Faça merge no `master`. O workflow
+   [`auto-release.yml`](.github/workflows/auto-release.yml) percebe o
+   `versionName` novo (sem tag ainda) e dispara o *Release* com a tag
+   `v<versionName>`, que cria a tag, publica no GitHub e envia para a Play.
+   Se o `versionName` mudou mas o `versionCode` não foi incrementado, ele
+   para com erro em vez de publicar.
+
+   Também dá para publicar à mão, criando a tag:
 
    ```bash
    git tag v1.18
    git push origin v1.18
    ```
+
+   Para desligar a release automática, crie a variável de repositório
+   `AUTO_RELEASE` com o valor `false`.
 
 O AAB vai para a faixa **teste interno** (`internal`). Para mudar o padrão,
 crie a variável de repositório `PLAY_TRACK` (*Settings → Secrets and
