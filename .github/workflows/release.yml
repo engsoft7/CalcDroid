@@ -124,6 +124,7 @@ jobs:
         run: ./gradlew assembleRelease bundleRelease
 
       - name: Preparar artefatos
+        id: artefatos
         env:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
         run: |
@@ -147,11 +148,14 @@ jobs:
                     | openssl x509 -noout -fingerprint -sha1 | sed 's/.*=//')
             echo "Impressao digital do AAB: $ATUAL"
             echo "Esperada pelo Play      : $EXPECTED_UPLOAD_SHA1"
+            # Chave diferente não impede a Release do GitHub (o APK continua
+            # instalável); só o envio para a Play, que ela recusaria.
             if [ "$ATUAL" != "$EXPECTED_UPLOAD_SHA1" ]; then
-              echo "::error::O AAB foi assinado com a chave errada. O Play Console vai recusar o envio. Verifique se .github/calcdroid-upload.jks.enc contem o keystore de upload correto e se os secrets KEYSTORE_PASSWORD/KEY_ALIAS/KEY_PASSWORD correspondem a ele."
-              exit 1
+              echo "::warning::O AAB foi assinado com uma chave diferente da chave de upload registrada na Play ($EXPECTED_UPLOAD_SHA1). A Release do GitHub sai normalmente, mas o envio para a Play fica bloqueado. Veja 'Chave de upload diferente' no README."
+            else
+              echo "OK: assinado com a chave de upload esperada."
+              echo "chave_play_ok=true" >> "$GITHUB_OUTPUT"
             fi
-            echo "OK: assinado com a chave de upload esperada."
           fi
 
       - name: Publicar na Release do GitHub
@@ -172,6 +176,7 @@ jobs:
         env:
           PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          CHAVE_PLAY_OK: ${{ steps.artefatos.outputs.chave_play_ok }}
         run: |
           if [ "$PLAY_TRACK" = "none" ]; then
             echo "Envio para a Play desligado nesta execucao (faixa: none)."
@@ -183,6 +188,10 @@ jobs:
           fi
           if [ -z "$KEYSTORE_PASSWORD" ]; then
             echo "::error::Ha credencial da Play, mas o AAB saiu sem assinatura (secrets KEYSTORE_* ausentes). A Play so aceita o AAB assinado com a chave de upload."
+            exit 1
+          fi
+          if [ "$CHAVE_PLAY_OK" != "true" ]; then
+            echo "::error::A Release do GitHub foi publicada, mas o AAB nao foi enviado a Play: ele foi assinado com uma chave diferente da chave de upload registrada no Play Console ($EXPECTED_UPLOAD_SHA1). Veja 'Chave de upload diferente' no README."
             exit 1
           fi
           if ! printf '%s' "$PLAY_SERVICE_ACCOUNT_JSON" | jq -e '.type == "service_account" and (.client_email | length > 0) and (.private_key | length > 0)' > /dev/null 2>&1; then
