@@ -208,6 +208,23 @@ Do teste interno, a versão é promovida para produção no próprio Play Consol
   ainda não foi publicado em nenhuma faixa; crie a variável
   `PLAY_RELEASE_STATUS` com o valor `draft` e conclua o lançamento no Play
   Console.
+- **Chave de upload diferente** (aviso no passo *Preparar artefatos*) — o
+  keystore dos secrets assina com outra chave, não com a chave de upload que
+  o Play Console espera (`EXPECTED_UPLOAD_SHA1` no `release.yml`). A Release
+  do GitHub sai mesmo assim, mas o AAB não vai para a Play. Há dois caminhos:
+  1. Encontrar o keystore original (o que assinou as versões já publicadas na
+     Play, normalmente criado pelo Android Studio no computador) e colocá-lo
+     no secret `KEYSTORE_BASE64`, com as senhas e o alias dele.
+  2. Se ele se perdeu, pedir a troca da chave de upload no Play Console
+     (*Integridade do app → Assinatura de apps → Solicitar redefinição da
+     chave de upload*), enviando o certificado do keystore atual:
+
+     ```bash
+     keytool -export -rfc -keystore calcdroid-upload.jks -alias calcdroid-upload -file upload_certificate.pem
+     ```
+
+     Quando o Google aprovar (leva alguns dias), troque `EXPECTED_UPLOAD_SHA1`
+     no `release.yml` pela impressão digital nova.
 - **`Changes cannot be sent for review automatically`** — há alterações
   pendentes feitas no Play Console (ficha, classificação etc.); envie-as para
   revisão por lá e rode o workflow de novo.
