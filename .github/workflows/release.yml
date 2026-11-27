@@ -1,8 +1,8 @@
 name: Release
 
 # Ao criar uma tag v* (ex.: v1.0), compila o APK e o AAB de release, anexa os
-# dois na Release do GitHub e envia o AAB para a Play Store (faixa "internal"
-# por padrão; ver README). Também pode ser disparado manualmente (aba
+# dois na Release do GitHub e envia o AAB para a Play Store (direto para
+# produção por padrão; ver README). Também pode ser disparado manualmente (aba
 # Actions > Release > Run workflow) informando a tag, que é criada junto com
 # a release, e a faixa da Play.
 on:
@@ -18,12 +18,12 @@ on:
         description: "Faixa da Play Store para o AAB (none = não enviar)"
         type: choice
         options:
+          - production
           - internal
           - alpha
           - beta
-          - production
           - none
-        default: internal
+        default: production
 
 permissions:
   contents: write
@@ -40,8 +40,8 @@ jobs:
       RELEASE_TAG: ${{ github.event.inputs.tag || github.ref_name }}
       # Faixa da Play: a escolhida na execução manual; num push de tag, a
       # variável de repositório PLAY_TRACK (Settings > Secrets and variables >
-      # Actions > Variables), ou "internal" se ela não existir.
-      PLAY_TRACK: ${{ github.event.inputs.play_track || vars.PLAY_TRACK || 'internal' }}
+      # Actions > Variables), ou "production" se ela não existir.
+      PLAY_TRACK: ${{ github.event.inputs.play_track || vars.PLAY_TRACK || 'production' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v7
