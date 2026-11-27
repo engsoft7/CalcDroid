@@ -1,6 +1,8 @@
 # Ficha da Play Store
 
-Os textos e as imagens da ficha ficam em [`listing/pt-BR/`](listing/pt-BR/) e
+Os textos e as imagens da ficha ficam em [`listing/pt-BR/`](listing/pt-BR/)
+(português) e [`listing/en-US/`](listing/en-US/) (inglês, criada como tradução
+na primeira publicação) e
 são enviados para a Play pelo workflow *Ficha da Play Store* (ver README,
 seção "Ficha da loja automática"). Para mudar a ficha, edite esses arquivos.
 
@@ -22,9 +24,8 @@ O ícone e o gráfico de destaque são gerados por
 
 ### Capturas de tela
 
-As 4 capturas em `listing/pt-BR/images/phoneScreenshots/` (1080×2160) foram
-renderizadas a partir do próprio app (básica, científica, gráfico em radianos
-e modo escuro). São enviadas em ordem alfabética e substituem as que estão na
+As capturas em `listing/*/images/phoneScreenshots/` (1080×2160) foram
+renderizadas a partir do próprio app, em cada idioma. São enviadas em ordem alfabética e substituem as que estão na
 loja quando a ficha é publicada. Para trocar, salve novas imagens ali (lado
 menor ≥ 320 px, lado maior no máximo o dobro do menor, sem transparência).
 

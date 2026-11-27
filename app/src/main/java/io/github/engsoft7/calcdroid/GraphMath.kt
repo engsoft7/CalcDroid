@@ -35,3 +35,21 @@ fun axisLabel(value: Double): String {
     val rounded = BigDecimal(value).round(MathContext(3)).stripTrailingZeros()
     return if (abs(value) >= 1e6) rounded.toString() else rounded.toPlainString()
 }
+
+/**
+ * Passo "redondo" (1, 2 ou 5 × 10ⁿ) para a grade, de forma que [span]
+ * fique dividido em cerca de [divisions] partes.
+ */
+fun niceStep(span: Double, divisions: Int = 6): Double {
+    if (!span.isFinite() || span <= 0) return 1.0
+    val raw = span / divisions
+    val magnitude = Math.pow(10.0, kotlin.math.floor(kotlin.math.log10(raw)))
+    val fraction = raw / magnitude
+    val nice = when {
+        fraction < 1.5 -> 1.0
+        fraction < 3.5 -> 2.0
+        fraction < 7.5 -> 5.0
+        else -> 10.0
+    }
+    return nice * magnitude
+}

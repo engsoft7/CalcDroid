@@ -58,11 +58,11 @@ jobs:
             echo "::warning::A tag $RELEASE_TAG nao corresponde ao versionName \"$NAME\" do app/build.gradle.kts. Lembre de incrementar versionCode e versionName antes de criar a tag."
           fi
 
-      - name: Configurar JDK 17
+      - name: Configurar JDK 21
         uses: actions/setup-java@v6
         with:
           distribution: temurin
-          java-version: "17"
+          java-version: "21"
 
       - name: Configurar Gradle
         uses: gradle/actions/setup-gradle@v6
