@@ -1,0 +1,3 @@
+# Dependências de tools/play_store_listing.py (ficha da Play Store).
+google-api-python-client==2.202.0
+google-auth==2.63.1

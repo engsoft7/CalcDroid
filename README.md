@@ -62,13 +62,12 @@ O AAB assinado fica em `app/build/outputs/bundle/release/app-release.aab`.
 1. No [Play Console](https://play.google.com/console), crie o app (nome:
    **CalcDroid**) e aceite o Play App Signing.
 2. Envie o `app-release.aab` em *Produção* (ou *Teste interno* primeiro).
-3. Preencha a ficha da loja com o material pronto em
-   [`play-store/store-listing.md`](play-store/store-listing.md) (nome,
-   descrições, categoria) e os assets:
-   - Ícone 512×512: `play-store/ic_launcher-playstore.png`
-   - Gráfico de destaque 1024×500: `play-store/feature-graphic.png`
-   - Capturas de tela: pelo menos 2, capturadas de um aparelho ou emulador
-     (sugestões no mesmo arquivo).
+3. Preencha a ficha da loja com o material de
+   [`play-store/listing/pt-BR/`](play-store/listing/pt-BR/) (nome, descrições,
+   ícone 512×512 e gráfico de destaque 1024×500) e pelo menos 2 capturas de
+   tela — detalhes em [`play-store/store-listing.md`](play-store/store-listing.md).
+   Depois disso a ficha pode ser mantida pelo GitHub (ver
+   [Ficha da loja automática](#ficha-da-loja-automática)).
 4. Informe a URL da política de privacidade (obrigatória para todo app):
    `https://engsoft7.github.io/CalcDroid/privacy-policy.html`. A página fica
    em [`docs/privacy-policy.html`](docs/privacy-policy.html); para publicá-la,
@@ -203,6 +202,48 @@ Do teste interno, a versão é promovida para produção no próprio Play Consol
   pendentes feitas no Play Console (ficha, classificação etc.); envie-as para
   revisão por lá e rode o workflow de novo.
 
+## Ficha da loja automática
+
+O workflow [`store-listing.yml`](.github/workflows/store-listing.yml) mantém a
+ficha da Play (nome, descrições, ícone, gráfico de destaque e capturas) igual
+aos arquivos de [`play-store/listing/`](play-store/listing/), usando o script
+[`tools/play_store_listing.py`](tools/play_store_listing.py) e o mesmo secret
+`PLAY_SERVICE_ACCOUNT_JSON` do envio do AAB.
+
+**Permissão extra:** no Play Console, a conta de serviço precisa também de
+**Gerenciar presença na loja** (*Usuários e permissões → conta de serviço →
+Permissões do app*).
+
+Só o que existe na pasta é enviado: um arquivo ausente deixa o campo como está
+na Play, e uma pasta de capturas vazia não apaga as capturas da loja. A pasta
+`pt-BR` precisa ter o código do idioma da ficha no Play Console; se não bater
+com nenhum idioma de lá, o script para com um erro em vez de criar uma
+tradução nova.
+
+### Primeira vez (para não sobrescrever nada sem querer)
+
+1. *Actions → Ficha da Play Store → Run workflow → **baixar***. Baixe o
+   artefato `ficha-atual-da-play` e compare com `play-store/listing/`; se a
+   ficha da Play tiver algo que você quer manter, copie para os arquivos.
+2. Rode de novo com **validar**: a Play confere tudo, mas nada é publicado. O
+   log mostra o que mudaria.
+3. Rode com **publicar**.
+
+### Depois
+
+- Edite os arquivos em `play-store/listing/` e faça merge no `master`. O
+  workflow valida a mudança na Play; para publicar, rode **publicar**.
+- Para publicar sozinho a cada merge, crie a variável de repositório
+  `PLAY_LISTING_AUTO_PUBLISH` com o valor `true`.
+- Em pull requests o workflow só confere tamanhos de texto e formatos de
+  imagem, sem falar com a Play. Dá para rodar o mesmo localmente:
+
+  ```bash
+  python3 tools/play_store_listing.py check
+  ```
+
+Mudanças na ficha podem passar pela revisão da Play antes de aparecer na loja.
+
 ## Ícone do app e artes da loja
 
 A arte de origem é `tools/icon_glyph.png`: só a calculadora, em RGBA com
@@ -219,9 +260,10 @@ separadas, como o Android espera.
   dela o launcher recorta o desenho);
 - `mipmap-*/ic_launcher{,_round}.png` — ícones legados (pré-API 26), já
   recortados em quadrado arredondado e em círculo;
-- `play-store/ic_launcher-playstore.png` — ícone 512×512 da ficha da loja.
+- `play-store/listing/pt-BR/images/icon.png` — ícone 512×512 da ficha da loja.
 
-O gráfico de destaque da loja (1024×500) sai de
+O gráfico de destaque da loja (1024×500,
+`play-store/listing/pt-BR/images/featureGraphic.png`) sai de
 `tools/generate_feature_graphic.py`, que reaproveita o mesmo glifo e o mesmo
 degradê. Para alterar as artes, troque `tools/icon_glyph.png` ou ajuste a
 paleta/geometria nos scripts e rode:

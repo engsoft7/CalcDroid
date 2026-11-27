@@ -1,0 +1,99 @@
+name: Ficha da Play Store
+
+# Sincroniza a ficha da loja (textos, ícone, gráfico de destaque e capturas)
+# com a pasta play-store/listing/, pelo script tools/play_store_listing.py.
+#
+# - Pull request que mexe na ficha: só confere textos e imagens (sem rede).
+# - Push no master que mexe na ficha: valida na Play sem publicar; publica
+#   sozinho apenas se a variável de repositório PLAY_LISTING_AUTO_PUBLISH for
+#   "true" (deixe desligada até o primeiro "publicar" manual dar certo).
+# - Execução manual (Actions > Ficha da Play Store > Run workflow):
+#     validar  - manda para a Play e pede a validação, sem publicar
+#     publicar - publica a ficha
+#     baixar   - baixa a ficha atual da Play como artefato, para comparar
+on:
+  pull_request:
+    paths:
+      - "play-store/listing/**"
+      - "tools/play_store_listing.py"
+  push:
+    branches:
+      - master
+    paths:
+      - "play-store/listing/**"
+  workflow_dispatch:
+    inputs:
+      modo:
+        description: "O que fazer com a ficha da loja"
+        type: choice
+        options:
+          - validar
+          - publicar
+          - baixar
+        default: validar
+
+permissions:
+  contents: read
+
+# Duas edições abertas ao mesmo tempo na Play se invalidam; nunca cancela uma
+# execução no meio do envio.
+concurrency:
+  group: play-store-listing
+  cancel-in-progress: false
+
+jobs:
+  listing:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Conferir textos e imagens
+        if: github.event.inputs.modo != 'baixar'
+        run: python3 tools/play_store_listing.py check
+
+      - name: Escolher o que fazer
+        id: modo
+        env:
+          PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+          EVENT: ${{ github.event_name }}
+          INPUT: ${{ github.event.inputs.modo }}
+          AUTO_PUBLISH: ${{ vars.PLAY_LISTING_AUTO_PUBLISH }}
+        run: |
+          case "$EVENT" in
+            pull_request) echo "Pull request: so a conferencia local."; exit 0 ;;
+            push) if [ "$AUTO_PUBLISH" = "true" ]; then CMD=publish; else CMD=validate; fi ;;
+            *) case "$INPUT" in
+                 publicar) CMD=publish ;;
+                 baixar) CMD=download ;;
+                 *) CMD=validate ;;
+               esac ;;
+          esac
+          if [ -z "$PLAY_SERVICE_ACCOUNT_JSON" ]; then
+            echo "::notice::Secret PLAY_SERVICE_ACCOUNT_JSON ausente; nada foi enviado a Play. Veja o README."
+            exit 0
+          fi
+          echo "Comando: $CMD"
+          echo "cmd=$CMD" >> "$GITHUB_OUTPUT"
+
+      - name: Instalar cliente da Play API
+        if: steps.modo.outputs.cmd != ''
+        run: pip install -r tools/requirements-play.txt
+
+      - name: Sincronizar com a Play
+        if: steps.modo.outputs.cmd != ''
+        env:
+          PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+        run: python3 tools/play_store_listing.py ${{ steps.modo.outputs.cmd }} --out ficha-atual
+
+      - name: Guardar a ficha baixada
+        if: steps.modo.outputs.cmd == 'download'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ficha-atual-da-play
+          path: ficha-atual/
