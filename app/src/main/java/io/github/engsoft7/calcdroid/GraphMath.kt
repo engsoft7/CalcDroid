@@ -3,6 +3,7 @@ package io.github.engsoft7.calcdroid
 import java.math.BigDecimal
 import java.math.MathContext
 import kotlin.math.abs
+import kotlin.math.sign
 
 /**
  * Faixa vertical [lo, hi] do gráfico a partir dos valores amostrados de f(x).
@@ -52,4 +53,49 @@ fun niceStep(span: Double, divisions: Int = 6): Double {
         else -> 10.0
     }
     return nice * magnitude
+}
+
+/**
+ * Zeros de [f] em [xMin]..[xMax]: procura trocas de sinal em [samples]
+ * intervalos e refina por bisseção. Descarta assíntotas (como em tan e 1/x),
+ * onde o sinal troca mas a função não chega perto de zero.
+ */
+fun findRoots(f: (Double) -> Double, xMin: Double, xMax: Double, samples: Int = 400, limit: Int = 12): List<Double> {
+    val roots = mutableListOf<Double>()
+    val step = (xMax - xMin) / samples
+    val tolerance = step * 1e-3
+    var x0 = xMin
+    var y0 = f(x0)
+    for (i in 1..samples) {
+        val x1 = xMin + i * step
+        val y1 = f(x1)
+        if (y0 == 0.0) {
+            roots += x0
+        } else if (y0.isFinite() && y1.isFinite() && y1 != 0.0 && sign(y0) != sign(y1)) {
+            var a = x0
+            var b = x1
+            var fa = y0
+            repeat(60) {
+                val m = (a + b) / 2
+                val fm = f(m)
+                if (!fm.isFinite()) return@repeat
+                if (sign(fm) == sign(fa)) { a = m; fa = fm } else b = m
+            }
+            val r = (a + b) / 2
+            val fr = f(r)
+            // Na assíntota |f| cresce ao refinar; num zero de verdade some.
+            if (fr.isFinite() && abs(fr) < 1e-6 * maxOf(1.0, abs(y0), abs(y1)) &&
+                abs(fr) <= minOf(abs(y0), abs(y1))
+            ) roots += r
+        }
+        x0 = x1
+        y0 = y1
+        if (roots.size >= limit) break
+    }
+    if (y0 == 0.0 && roots.size < limit) roots += x0
+    // Junta zeros repetidos (tocou o eixo exatamente na divisa de intervalos).
+    return roots.fold(mutableListOf()) { acc, r ->
+        if (acc.isEmpty() || abs(acc.last() - r) > tolerance + step / 2) acc += r
+        acc
+    }
 }

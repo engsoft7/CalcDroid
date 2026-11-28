@@ -33,7 +33,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -71,7 +71,7 @@ private val ResultSaver = listSaver<List<List<String>>?, String>(
 @Composable
 fun MatrixScreen(colors: CalcColors, decimalSep: Char, modifier: Modifier = Modifier) {
     val haptic = LocalHapticFeedback.current
-    val context = LocalContext.current
+    val resources = LocalResources.current
     var size by rememberSaveable { mutableStateOf(2) }
     val cellsA = rememberSaveable(saver = CellSaver) { MutableList(MAX * MAX) { "0" }.toMutableStateList() }
     val cellsB = rememberSaveable(saver = CellSaver) { MutableList(MAX * MAX) { "0" }.toMutableStateList() }
@@ -99,15 +99,15 @@ fun MatrixScreen(colors: CalcColors, decimalSep: Char, modifier: Modifier = Modi
 
         result = null
         message = null
-        resultTitle = context.getString(R.string.result)
+        resultTitle = resources.getString(R.string.result)
         val a = parse(cellsA) ?: run {
-            message = context.getString(R.string.matrix_invalid, nameA)
+            message = resources.getString(R.string.matrix_invalid, nameA)
             return
         }
         when (op) {
             "A+B", "A−B", "A×B" -> {
                 val b = parse(cellsB) ?: run {
-                    message = context.getString(R.string.matrix_invalid, nameB)
+                    message = resources.getString(R.string.matrix_invalid, nameB)
                     return
                 }
                 result = toDisplay(
@@ -121,22 +121,22 @@ fun MatrixScreen(colors: CalcColors, decimalSep: Char, modifier: Modifier = Modi
             "det A" -> message = "det A = ${show(MatrixOps.determinant(a))}"
             "A⁻¹" -> {
                 val inv = MatrixOps.inverse(a)
-                if (inv == null) message = context.getString(R.string.matrix_singular) else result = toDisplay(inv)
+                if (inv == null) message = resources.getString(R.string.matrix_singular) else result = toDisplay(inv)
             }
             "Aᵀ" -> result = toDisplay(MatrixOps.transpose(a))
             "A·x=b" -> {
                 val b = DoubleArray(n)
                 for (i in 0 until n) {
                     b[i] = vectorB[i].toDoubleOrNull() ?: run {
-                        message = context.getString(R.string.matrix_invalid, nameVec)
+                        message = resources.getString(R.string.matrix_invalid, nameVec)
                         return
                     }
                 }
                 val x = MatrixOps.solve(a, b)
                 if (x == null) {
-                    message = context.getString(R.string.system_singular)
+                    message = resources.getString(R.string.system_singular)
                 } else {
-                    resultTitle = context.getString(R.string.system_solution)
+                    resultTitle = resources.getString(R.string.system_solution)
                     result = x.mapIndexed { i, v -> listOf("x${subscript(i + 1)} = ${show(v)}") }
                 }
             }

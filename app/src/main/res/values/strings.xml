@@ -18,7 +18,7 @@
     <string name="copied">Copied!</string>
     <string name="copy">Copy</string>
     <string name="memory_desc">Memory: %1$s</string>
-    <string name="graph_hint">Type f(x) on the keypad and press =</string>
+    <string name="graph_hint">Type f(x) on the keypad and press =. Pick g(x) for a second curve.</string>
     <string name="graph_reset">Reset</string>
     <string name="graph_reset_desc">Reset zoom</string>
     <string name="graph_point">x = %1$s   y = %2$s</string>
@@ -180,4 +180,47 @@
     <string name="unit_liters_per_100km">Liters per 100 km</string>
     <string name="unit_mpg_us">Miles per gallon (US)</string>
     <string name="unit_mpg_uk">Miles per gallon (UK)</string>
+    <string name="mode_stats">Statistics</string>
+    <string name="mode_finance">Finance</string>
+    <string name="stats_values">Values (x)</string>
+    <string name="stats_values_y">y values (optional, for regression)</string>
+    <string name="stats_hint">Separate with spaces, line breaks or ;</string>
+    <string name="stats_count">Count</string>
+    <string name="stats_sum">Sum</string>
+    <string name="stats_mean">Mean</string>
+    <string name="stats_median">Median</string>
+    <string name="stats_min">Minimum</string>
+    <string name="stats_max">Maximum</string>
+    <string name="stats_sd_pop">Std. deviation (population)</string>
+    <string name="stats_sd_sample">Std. deviation (sample)</string>
+    <string name="stats_regression">Linear regression</string>
+    <string name="stats_r">Correlation (r)</string>
+    <string name="stats_size_mismatch">x and y need the same number of values</string>
+    <string name="fin_compound">Compound interest</string>
+    <string name="fin_installments">Installments</string>
+    <string name="fin_percent" formatted="false">% change</string>
+    <string name="fin_principal">Initial amount</string>
+    <string name="fin_rate" formatted="false">Interest rate (% per period)</string>
+    <string name="fin_periods">Periods</string>
+    <string name="fin_deposit">Deposit per period (optional)</string>
+    <string name="fin_final_amount">Final amount</string>
+    <string name="fin_invested">Total invested</string>
+    <string name="fin_interest">Interest</string>
+    <string name="fin_loan">Loan amount</string>
+    <string name="fin_count">Number of installments</string>
+    <string name="fin_payment">Installment</string>
+    <string name="fin_total_paid">Total paid</string>
+    <string name="fin_from">Old value</string>
+    <string name="fin_to">New value</string>
+    <string name="fin_change">Change</string>
+    <string name="fin_difference">Difference</string>
+    <string name="graph_point2">x = %1$s   f = %2$s   g = %3$s</string>
+    <string name="graph_roots">Zeros of f: %1$s.</string>
+    <string name="graph_range">Range</string>
+    <string name="graph_range_from">x from</string>
+    <string name="graph_range_to">to</string>
+    <string name="graph_range_apply">OK</string>
+    <string name="widget_name">Calculator</string>
+    <string name="widget_desc">A small calculator on your home screen</string>
+    <string name="widget_open">Open CalcDroid</string>
 </resources>
