@@ -59,7 +59,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.onLongClick
+import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -378,6 +379,7 @@ fun BeautifulCalculatorScreen(
                         colors = colors,
                         decimalSep = decimalSep,
                         onKey = onKey,
+                        onPaste = { text -> calc = calc.paste(text) },
                         onPickHistory = { entry ->
                             calc = calc.copy(expression = entry.expression, lastExpression = "", justEvaluated = false)
                             showHistory = false
@@ -467,6 +469,7 @@ private fun CalculatorArea(
     colors: CalcColors,
     decimalSep: Char,
     onKey: (String) -> Unit,
+    onPaste: (String) -> Unit,
     onPickHistory: (HistoryEntry) -> Unit,
     onClearHistory: () -> Unit,
     modifier: Modifier = Modifier
@@ -491,7 +494,7 @@ private fun CalculatorArea(
             val rows = if (extraRows.isEmpty()) BASIC_ROWS else sideBySideRows(extraRows, BASIC_ROWS)
             Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                 CalcScreenArea(
-                    mode, calc, degrees, colors, decimalSep,
+                    mode, calc, degrees, colors, decimalSep, onPaste,
                     Modifier
                         .weight(1f)
                         .fillMaxHeight()
@@ -540,11 +543,14 @@ private fun CalculatorArea(
             // aceita ficar menor, mas nunca some.
             val display = if (tight) (if (mode == MODE_GRAPH) 140.dp else 72.dp) else normalDisplay
             val cellWidth = (maxWidth - spacing * 3) / 4
-            val buttonHeight = minOf(cellWidth, cellMaxHeight(spacing, memoryKeyHeight, display)).coerceAtLeast(20.dp)
+            // Em tablets (tela larga em pé) as teclas quadradas passariam de
+            // 150dp; o teto de 96dp deixa o resto da altura para o visor.
+            val buttonHeight = minOf(cellWidth, cellMaxHeight(spacing, memoryKeyHeight, display), 96.dp)
+                .coerceAtLeast(20.dp)
 
             Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(spacing)) {
                 CalcScreenArea(
-                    mode, calc, degrees, colors, decimalSep,
+                    mode, calc, degrees, colors, decimalSep, onPaste,
                     Modifier
                         .weight(1f)
                         .fillMaxWidth()
@@ -596,6 +602,7 @@ private fun CalcScreenArea(
     degrees: Boolean,
     colors: CalcColors,
     decimalSep: Char,
+    onPaste: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     if (mode == MODE_GRAPH) {
@@ -623,23 +630,43 @@ private fun CalcScreenArea(
             }
         }
     } else {
-        ExpressionDisplay(calc, colors, decimalSep, modifier)
+        ExpressionDisplay(calc, degrees, colors, decimalSep, onPaste, modifier)
     }
 }
 
 @Composable
-private fun ExpressionDisplay(calc: CalcState, colors: CalcColors, decimalSep: Char, modifier: Modifier = Modifier) {
+private fun ExpressionDisplay(
+    calc: CalcState,
+    degrees: Boolean,
+    colors: CalcColors,
+    decimalSep: Char,
+    onPaste: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
     val clipboard = LocalClipboard.current
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val errorText = stringResource(R.string.error)
     val copiedText = stringResource(R.string.copied)
+    val pasteInvalid = stringResource(R.string.paste_invalid)
     // Copia o texto cru (com * e /, ponto decimal), que outros apps entendem
     // melhor do que os símbolos do visor.
     val rawText = calc.expression.ifEmpty { "0" }
-    val displayText = if (rawText == ERROR_TEXT) errorText else prettyExpression(rawText, decimalSep)
+    // Resultado como fração (1/3), quando ele é uma fração simples; o botão
+    // alterna. Volta ao decimal a cada conta nova.
+    val fraction = if (calc.justEvaluated) calc.expression.toDoubleOrNull()?.let { toFraction(it) } else null
+    var showFraction by rememberSaveable(calc.expression) { mutableStateOf(false) }
+    val displayText = when {
+        rawText == ERROR_TEXT -> errorText
+        showFraction && fraction != null -> fraction
+        else -> prettyExpression(rawText, decimalSep)
+    }
+    // Prévia em cinza enquanto a conta é digitada.
+    val preview = calc.preview(degrees)?.let { prettyExpression(it, decimalSep) }
+    var menuOpen by remember { mutableStateOf(false) }
 
     fun copyToClipboard() {
+        menuOpen = false
         scope.launch {
             clipboard.setClipEntry(ClipEntry(ClipData.newPlainText("CalcDroid", rawText)))
         }
@@ -650,20 +677,35 @@ private fun ExpressionDisplay(calc: CalcState, colors: CalcColors, decimalSep: C
         }
     }
 
+    fun pasteFromClipboard() {
+        menuOpen = false
+        scope.launch {
+            val text = clipboard.getClipEntry()?.clipData
+                ?.takeIf { it.itemCount > 0 }
+                ?.getItemAt(0)?.coerceToText(context)?.toString()
+            val clean = text?.let { sanitizePasted(it, decimalSep) }
+            if (clean != null) onPaste(clean) else Toast.makeText(context, pasteInvalid, Toast.LENGTH_SHORT).show()
+        }
+    }
+
     val copyLabel = stringResource(R.string.copy)
+    val pasteLabel = stringResource(R.string.paste)
     val memoryDesc = stringResource(R.string.memory_desc, prettyNumber(formatNumber(calc.memory), decimalSep))
     // Visor ocupa o espaço restante, ancorando o teclado embaixo
     BoxWithConstraints(
         modifier = modifier
-            .pointerInput(rawText) {
-                detectTapGestures(onLongPress = { copyToClipboard() })
+            .pointerInput(Unit) {
+                detectTapGestures(
+                    onLongPress = { menuOpen = true },
+                    onTap = { menuOpen = false }
+                )
             }
-            // Mesma ação para quem usa TalkBack (toque duplo e segurar).
+            // Mesmas ações para quem usa TalkBack.
             .semantics {
-                onLongClick(label = copyLabel) {
-                    copyToClipboard()
-                    true
-                }
+                customActions = listOf(
+                    CustomAccessibilityAction(copyLabel) { copyToClipboard(); true },
+                    CustomAccessibilityAction(pasteLabel) { pasteFromClipboard(); true },
+                )
             },
         contentAlignment = Alignment.BottomEnd
     ) {
@@ -680,6 +722,50 @@ private fun ExpressionDisplay(calc: CalcState, colors: CalcColors, decimalSep: C
                 color = colors.accent
             )
         }
+        if (fraction != null && !menuOpen) {
+            val label = stringResource(if (showFraction) R.string.decimal else R.string.fraction)
+            val desc = stringResource(if (showFraction) R.string.decimal_desc else R.string.fraction_desc)
+            Text(
+                text = label,
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(colors.chip)
+                    .clickable(role = Role.Button) { showFraction = !showFraction }
+                    .semantics { contentDescription = desc }
+                    .padding(horizontal = 10.dp, vertical = 4.dp),
+                fontSize = 12.sp,
+                color = colors.chipText
+            )
+        }
+        if (menuOpen) {
+            // Menu de copiar/colar, aberto ao segurar o visor.
+            Row(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .shadow(4.dp, RoundedCornerShape(12.dp))
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(colors.card)
+            ) {
+                Text(
+                    text = copyLabel,
+                    modifier = Modifier
+                        .clickable(role = Role.Button) { copyToClipboard() }
+                        .padding(horizontal = 16.dp, vertical = 10.dp),
+                    fontSize = 15.sp,
+                    color = colors.text
+                )
+                Text(
+                    text = pasteLabel,
+                    modifier = Modifier
+                        .clickable(role = Role.Button) { pasteFromClipboard() }
+                        .padding(horizontal = 16.dp, vertical = 10.dp),
+                    fontSize = 15.sp,
+                    color = colors.text
+                )
+            }
+        }
+        val previewSpace = if (preview != null) 30f else 0f
         Column(horizontalAlignment = Alignment.End) {
             if (calc.lastExpression.isNotEmpty()) {
                 Text(
@@ -704,12 +790,21 @@ private fun ExpressionDisplay(calc: CalcState, colors: CalcColors, decimalSep: C
                         else -> 20f
                     },
                     // Visor baixo (tela pequena ou dividida): a fonte cabe na
-                    // altura que sobra depois da linha da conta anterior.
-                    ((displayHeight.value - if (calc.lastExpression.isNotEmpty()) 26f else 0f) * 0.75f).coerceAtLeast(16f)
+                    // altura que sobra depois da conta anterior e da prévia.
+                    ((displayHeight.value - previewSpace - if (calc.lastExpression.isNotEmpty()) 26f else 0f) * 0.75f)
+                        .coerceAtLeast(16f)
                 ).sp,
                 fontWeight = FontWeight.Light,
                 color = colors.text
             )
+            if (preview != null) {
+                Text(
+                    text = preview,
+                    fontSize = 22.sp,
+                    color = colors.secondaryText,
+                    maxLines = 1
+                )
+            }
         }
     }
 }

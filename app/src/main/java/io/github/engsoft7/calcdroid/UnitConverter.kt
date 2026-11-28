@@ -92,6 +92,53 @@ object UnitConverter {
             )
         ),
         UnitCategory(
+            "pressure", R.string.cat_pressure, listOf(
+                linear("kpa", "kPa", R.string.unit_kilopascal, 1000.0),
+                linear("pa", "Pa", R.string.unit_pascal, 1.0),
+                linear("bar", "bar", R.string.unit_bar, 1e5),
+                linear("atm", "atm", R.string.unit_atmosphere, 101325.0),
+                linear("psi", "psi", R.string.unit_psi, 6894.757293168),
+                linear("mmhg", "mmHg", R.string.unit_mmhg, 133.322387415),
+            )
+        ),
+        UnitCategory(
+            "energy", R.string.cat_energy, listOf(
+                linear("kj", "kJ", R.string.unit_kilojoule, 1000.0),
+                linear("j", "J", R.string.unit_joule, 1.0),
+                linear("kcal", "kcal", R.string.unit_kilocalorie, 4184.0),
+                linear("cal", "cal", R.string.unit_calorie, 4.184),
+                linear("wh", "Wh", R.string.unit_watt_hour, 3600.0),
+                linear("kwh", "kWh", R.string.unit_kilowatt_hour, 3.6e6),
+                linear("btu", "BTU", R.string.unit_btu, 1055.05585262),
+            )
+        ),
+        UnitCategory(
+            "power", R.string.cat_power, listOf(
+                linear("kw", "kW", R.string.unit_kilowatt, 1000.0),
+                linear("w", "W", R.string.unit_watt, 1.0),
+                linear("hp", "hp", R.string.unit_horsepower, 745.69987158),
+                linear("cv", "cv", R.string.unit_metric_horsepower, 735.49875),
+                linear("btuh", "BTU/h", R.string.unit_btu_per_hour, 0.29307107),
+            )
+        ),
+        UnitCategory(
+            "angle", R.string.cat_angle, listOf(
+                linear("deg", "°", R.string.unit_degree, Math.PI / 180),
+                linear("rad", "rad", R.string.unit_radian, 1.0),
+                linear("grad", "grad", R.string.unit_gradian, Math.PI / 200),
+                linear("turn", "", R.string.unit_turn, 2 * Math.PI),
+            )
+        ),
+        UnitCategory(
+            // Base: km/L. L/100 km é o inverso (mais litros = menos km/L).
+            "fuel", R.string.cat_fuel, listOf(
+                linear("kml", "km/L", R.string.unit_km_per_liter, 1.0),
+                UnitDef("l100", "L/100 km", R.string.unit_liters_per_100km, { 100 / it }, { 100 / it }),
+                linear("mpgus", "mpg (US)", R.string.unit_mpg_us, 1.609344 / 3.785411784),
+                linear("mpguk", "mpg (UK)", R.string.unit_mpg_uk, 1.609344 / 4.54609),
+            )
+        ),
+        UnitCategory(
             "data", R.string.cat_data, listOf(
                 linear("b", "bit", R.string.unit_bit, 0.125),
                 linear("B", "B", R.string.unit_byte, 1.0),

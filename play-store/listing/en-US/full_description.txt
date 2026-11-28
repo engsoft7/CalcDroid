@@ -2,7 +2,7 @@ CalcDroid is a complete, lightweight calculator with no ads. Everything works of
 
 FIVE MODES IN ONE APP
 
-• Basic — the four operations, phone-style percentages (100 − 10% = 90) and memory (MC, MR, M+, M−), with a display that shows the whole expression as you type.
+• Basic — the four operations, phone-style percentages (100 − 10% = 90) and memory (MC, MR, M+, M−), with the result showing as you type.
 
 • Scientific — sine, cosine, tangent and their inverses, in degrees or radians; logarithms (log and ln), square root, x², 1/x, absolute value |x|, remainder (mod), powers, factorial and the constants π and e. Type complete expressions such as 2sin(30) + √16^2, with implicit multiplication and parentheses.
 
@@ -10,13 +10,14 @@ FIVE MODES IN ONE APP
 
 • Matrices — addition, subtraction and multiplication of 2×2, 3×3 and 4×4 matrices, plus determinant, inverse, transpose and solving linear systems A·x = b.
 
-• Converter — length, mass, temperature, area, volume, speed, time and data units, plus binary, octal, decimal and hexadecimal.
+• Converter — length, mass, temperature, area, volume, speed, time, data, pressure, energy, power, angle and fuel economy, plus binary, octal, decimal and hexadecimal.
 
 MADE FOR EVERYDAY USE
 
 • Clean interface with large buttons, light haptic feedback and automatic dark mode.
-• Calculation history: tap an old calculation to use it again.
-• Works in portrait and landscape, and keeps your state when you rotate.
+• Results as a fraction (1/3) or decimal, with one tap.
+• Calculation history and copy/paste on the display.
+• Works in portrait and landscape, on phones and tablets, and keeps your state when you rotate.
 • Screen reader (TalkBack) support.
 • Small, fast and open source (MIT license).
 

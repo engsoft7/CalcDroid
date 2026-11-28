@@ -186,3 +186,107 @@ fun prettyExpression(expression: String, decimalSep: Char = ','): String =
         .replace('*', '×')
         .replace('/', '÷')
         .replace('.', decimalSep)
+
+// ---- Resultado ao vivo ----
+
+private val PLAIN_NUMBER = Regex("^-?[0-9.]+(E[+-]?[0-9]+)?$")
+
+/**
+ * Resultado da conta enquanto ela é digitada, para mostrar em cinza antes do
+ * "=". Null quando não há o que antecipar: visor vazio, resultado já
+ * mostrado, número sozinho ou conta ainda inválida.
+ */
+fun CalcState.preview(degrees: Boolean = true): String? {
+    if (justEvaluated || expression.isEmpty() || expression == ERROR_TEXT) return null
+    if (PLAIN_NUMBER.matches(expression)) return null
+    val value = currentValue(degrees) ?: return null
+    return formatNumber(value).takeIf { it != ERROR_TEXT }
+}
+
+// ---- Colar ----
+
+private const val PASTE_ALLOWED = "0123456789.+-*/^()%!πe"
+
+/**
+ * Converte um texto copiado de outro app numa conta que o teclado entende,
+ * ou null se não for uma conta válida. Aceita ×, ÷ e −, espaços, e números
+ * com separador de milhar ("1.234,5" ou "1,234.5") ou decimal do idioma.
+ */
+fun sanitizePasted(text: String, decimalSep: Char = ','): String? {
+    var t = text.trim()
+        .replace('×', '*').replace('÷', '/').replace('−', '-').replace('–', '-')
+        .replace(" ", "").replace(" ", "")
+    if (t.isEmpty()) return null
+    t = normalizeSeparators(t, decimalSep)
+    if (t.any { it !in PASTE_ALLOWED } || t.length > 60) return null
+    return try {
+        ExpressionEvaluator.evaluate(autoCloseParentheses(t))
+        t
+    } catch (e: Exception) {
+        null
+    }
+}
+
+/** Deixa só '.' como separador decimal, tirando os separadores de milhar. */
+private fun normalizeSeparators(t: String, decimalSep: Char): String {
+    val hasDot = '.' in t
+    val hasComma = ',' in t
+    return when {
+        // Os dois aparecem: o último de cada número é o decimal.
+        hasDot && hasComma -> {
+            val decimal = if (t.lastIndexOf(',') > t.lastIndexOf('.')) ',' else '.'
+            val thousands = if (decimal == ',') '.' else ','
+            t.replace(thousands.toString(), "").replace(decimal, '.')
+        }
+        hasComma -> commaOrDotAlone(t, ',', decimalSep)
+        hasDot -> commaOrDotAlone(t, '.', decimalSep)
+        else -> t
+    }
+}
+
+private fun commaOrDotAlone(t: String, sep: Char, decimalSep: Char): String {
+    // O separador do idioma é decimal. O outro também é, a não ser que
+    // apareça em grupos de exatamente 3 dígitos ("1.234.567" no inglês
+    // seria milhar com vírgula; "12.500" no português, milhar com ponto).
+    if (sep == decimalSep) return t.replace(sep, '.')
+    val thousandsPattern = Regex("\\d{1,3}(\\${sep}\\d{3})+(?!\\d)")
+    val looksThousands = thousandsPattern.containsMatchIn(t) && !Regex("\\${sep}\\d{1,2}(?!\\d)|\\${sep}\\d{4,}").containsMatchIn(t)
+    return if (looksThousands) t.replace(sep.toString(), "") else t.replace(sep, '.')
+}
+
+/** Cola no visor: depois de um resultado substitui, senão acrescenta. */
+fun CalcState.paste(text: String): CalcState {
+    val base = if (justEvaluated || expression == ERROR_TEXT) copy(expression = "", lastExpression = "", justEvaluated = false) else this
+    val joined = base.expression + text
+    return if (joined.length <= MAX_LENGTH) base.copy(expression = joined) else base
+}
+
+// ---- Frações ----
+
+/**
+ * O resultado como fração "a/b" (ex.: 0,333… → 1/3), por frações contínuas
+ * com denominador até [maxDenominator]. Null para inteiros, números grandes
+ * ou valores que não são uma fração simples (como π).
+ */
+fun toFraction(value: Double, maxDenominator: Long = 10_000): String? {
+    if (!value.isFinite() || value == Math.rint(value) || kotlin.math.abs(value) >= 1e9) return null
+    val sign = if (value < 0) "-" else ""
+    val x = kotlin.math.abs(value)
+    var h0 = 0L; var h1 = 1L
+    var k0 = 1L; var k1 = 0L
+    var rest = x
+    repeat(40) {
+        val a = kotlin.math.floor(rest).toLong()
+        val h2 = a * h1 + h0
+        val k2 = a * k1 + k0
+        if (k2 > maxDenominator) return null
+        h0 = h1; h1 = h2; k0 = k1; k1 = k2
+        if (kotlin.math.abs(x - h1.toDouble() / k1) <= 1e-9 * maxOf(1.0, x)) {
+            return if (k1 == 1L) null else "$sign$h1/$k1"
+        }
+        val frac = rest - a
+        if (frac < 1e-15) return null
+        rest = 1 / frac
+    }
+    return null
+}
