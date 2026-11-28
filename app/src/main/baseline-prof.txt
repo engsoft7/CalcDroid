@@ -1,0 +1,9 @@
+# Baseline Profile do CalcDroid: classes e métodos do app que o Android
+# compila antecipadamente na instalação, em vez de interpretar na primeira
+# abertura. As bibliotecas (Compose etc.) já trazem os próprios perfis; aqui
+# entra o código do app. Formato: https://developer.android.com/topic/performance/baselineprofiles/manually-create-measure
+#
+# Regras amplas (todo o pacote): o app é pequeno e praticamente todo ele roda
+# logo na abertura (tela, teclado, avaliador de expressões).
+HSPLio/github/engsoft7/calcdroid/**->**(**)**
+Lio/github/engsoft7/calcdroid/**

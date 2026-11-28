@@ -9,7 +9,9 @@ import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.longClick
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextReplacement
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -72,6 +74,69 @@ class CalculatorUiTest {
     }
 
     @Test
+    fun resultadoAoVivoEnquantoDigita() {
+        start()
+        keys("1", "2", "Multiply", "3")
+        rule.onNodeWithText("12×3").assertIsDisplayed()
+        rule.onNodeWithText("36").assertIsDisplayed()   // prévia em cinza
+        keys("Equals")
+        rule.onNodeWithText("36").assertIsDisplayed()
+        rule.onNodeWithText("12×3 =").assertIsDisplayed()
+    }
+
+    @Test
+    fun alternaFracao() {
+        start()
+        keys("1", "Divide", "3", "Equals")
+        rule.onNodeWithText("0.3333333333").assertIsDisplayed()
+        rule.onNodeWithText("Fraction").performClick()
+        rule.onNodeWithText("1/3").assertIsDisplayed()
+        rule.onNodeWithText("Decimal").performClick()
+        rule.onNodeWithText("0.3333333333").assertIsDisplayed()
+    }
+
+    @Test
+    fun colaContaCopiadaDeOutroApp() {
+        start()
+        val context = androidx.test.core.app.ApplicationProvider.getApplicationContext<android.content.Context>()
+        val cm = context.getSystemService(android.content.ClipboardManager::class.java)
+        cm.setPrimaryClip(android.content.ClipData.newPlainText("x", "1,234.5 × 2"))
+        rule.onNodeWithText("0").performTouchInput { longClick() }
+        rule.onNodeWithText("Paste").performClick()
+        rule.onNodeWithText("1234.5×2").assertIsDisplayed()
+        rule.onNodeWithText("2469").assertIsDisplayed()
+    }
+
+    @Test
+    @Config(qualifiers = "es-w411dp-h891dp-port")
+    fun emEspanhol() {
+        start()
+        keys("5", "Dividir", "2", "Igual")
+        rule.onNodeWithText("2,5").assertIsDisplayed()
+        rule.onNodeWithText("Gráfica").assertIsDisplayed()
+        rule.onNodeWithText("Historial").assertIsDisplayed()
+    }
+
+    @Test
+    @Config(qualifiers = "fr-w411dp-h891dp-port")
+    fun emFrances() {
+        start()
+        keys("5", "Diviser", "2", "Égal")
+        rule.onNodeWithText("2,5").assertIsDisplayed()
+        rule.onNodeWithText("Basique").assertIsDisplayed()
+        rule.onNodeWithText("Historique").assertIsDisplayed()
+    }
+
+    @Test
+    @Config(qualifiers = "en-w800dp-h1280dp-port")
+    fun tabletEmPeMostraVisorETeclado() {
+        start(MODE_SCIENTIFIC)
+        keys("7", "Plus", "8", "Equals")
+        rule.onNodeWithText("15").assertIsDisplayed()
+        rule.onNodeWithContentDescription("Equals").assertIsDisplayed()
+    }
+
+    @Test
     fun porcentagemComoNoCelular() {
         start()
         keys("1", "0", "0", "Minus", "1", "0", "Percent", "Equals")
@@ -129,7 +194,8 @@ class CalculatorUiTest {
     @Test
     fun conversorDeBases() {
         start(MODE_CONVERTER)
-        rule.onNodeWithText("Bases").performClick()
+        // "Bases" fica no fim da fileira de categorias, que rola de lado.
+        rule.onNodeWithText("Bases").performScrollTo().performClick()
         keys("Clear", "2", "5", "5")
         rule.onNodeWithText("11111111").assertIsDisplayed()
     }

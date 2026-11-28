@@ -1,0 +1,24 @@
+CalcDroid est une calculatrice complète, légère et sans publicité. Tout fonctionne hors ligne : l'application ne demande aucune autorisation et ne se connecte jamais à internet.
+
+CINQ MODES DANS UNE SEULE APPLICATION
+
+• Basique — les quatre opérations, les pourcentages comme sur un téléphone (100 − 10 % = 90) et la mémoire (MC, MR, M+, M−). Le résultat s'affiche pendant la saisie.
+
+• Scientifique — sinus, cosinus, tangente et leurs inverses, en degrés ou en radians ; logarithmes (log et ln), racine carrée, x², 1/x, valeur absolue |x|, reste (mod), puissances, factorielle et les constantes π et e. Saisissez des expressions complètes comme 2sin(30) + √16^2.
+
+• Graphique — saisissez f(x) et voyez la courbe immédiatement. Pincez pour zoomer, faites glisser pour déplacer et touchez la courbe pour lire n'importe quel point.
+
+• Matrices — addition, soustraction et multiplication de matrices 2×2, 3×3 et 4×4, ainsi que déterminant, inverse, transposée et systèmes linéaires A·x = b.
+
+• Convertisseur — longueur, masse, température, surface, volume, vitesse, temps, données, pression, énergie, puissance, angle et consommation de carburant, ainsi que binaire, octal, décimal et hexadécimal.
+
+PENSÉE POUR LE QUOTIDIEN
+
+• Interface claire avec de grandes touches, un léger retour haptique et un mode sombre automatique.
+• Résultats en fraction (1/3) ou en décimal, d'un simple geste.
+• Historique des calculs et copier/coller sur l'écran.
+• Fonctionne en portrait et en paysage, sur téléphone et tablette.
+• Compatible avec le lecteur d'écran TalkBack.
+• Petite, rapide et open source (licence MIT).
+
+Pas d'inscription, pas de publicité, aucune collecte de données. Juste une bonne calculatrice.
