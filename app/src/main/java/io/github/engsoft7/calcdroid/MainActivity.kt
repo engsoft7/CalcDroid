@@ -79,6 +79,8 @@ const val MODE_SCIENTIFIC = "sci"
 const val MODE_GRAPH = "graph"
 const val MODE_MATRIX = "matrix"
 const val MODE_CONVERTER = "converter"
+const val MODE_STATS = "stats"
+const val MODE_FINANCE = "finance"
 
 private val MODES = listOf(
     MODE_BASIC to R.string.mode_basic,
@@ -86,6 +88,8 @@ private val MODES = listOf(
     MODE_GRAPH to R.string.mode_graph,
     MODE_MATRIX to R.string.mode_matrix,
     MODE_CONVERTER to R.string.mode_converter,
+    MODE_STATS to R.string.mode_stats,
+    MODE_FINANCE to R.string.mode_finance,
 )
 
 // "2nd" troca estas teclas pelas inversas.
@@ -159,14 +163,15 @@ private val KEY_DESCRIPTIONS: Map<String, Int> = mapOf(
 )
 
 private val CalcStateSaver = listSaver<CalcState, Any>(
-    save = { listOf(it.expression, it.lastExpression, it.justEvaluated, it.plotExpression, it.memory) },
+    save = { listOf(it.expression, it.lastExpression, it.justEvaluated, it.plotExpression, it.memory, it.plotExpression2) },
     restore = {
         CalcState(
             expression = it[0] as String,
             lastExpression = it[1] as String,
             justEvaluated = it[2] as Boolean,
             plotExpression = it[3] as String,
-            memory = it[4] as Double
+            memory = it[4] as Double,
+            plotExpression2 = it[5] as String
         )
     }
 )
@@ -263,6 +268,8 @@ fun BeautifulCalculatorScreen(
     var showHistory by rememberSaveable { mutableStateOf(false) }
     var history by remember { mutableStateOf(prefs?.history ?: emptyList()) }
     var showReviewDialog by rememberSaveable { mutableStateOf(false) }
+    // No gráfico: o teclado edita a g(x) em vez da f(x).
+    var editingG by rememberSaveable { mutableStateOf(false) }
 
     LaunchedEffect(calc.memory) { prefs?.memory = calc.memory }
     LaunchedEffect(degrees) { prefs?.degrees = degrees }
@@ -272,7 +279,7 @@ fun BeautifulCalculatorScreen(
         if (key == "2nd") {
             secondFunctions = !secondFunctions
         } else {
-            val after = calc.press(key, graphMode = mode == MODE_GRAPH, degrees = degrees)
+            val after = calc.press(key, graphMode = mode == MODE_GRAPH, degrees = degrees, secondPlot = editingG)
             if (key == "=" && after.justEvaluated && after.expression != ERROR_TEXT) {
                 history = addToHistory(history, HistoryEntry(after.lastExpression.removeSuffix(" ="), after.expression))
                 prefs?.history = history
@@ -333,6 +340,32 @@ fun BeautifulCalculatorScreen(
                     horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
+                    if (mode == MODE_GRAPH) {
+                        // Qual função o teclado está editando.
+                        listOf(false to "f(x)", true to "g(x)").forEach { (second, label) ->
+                            Chip(
+                                label = label,
+                                selected = editingG == second,
+                                colors = colors,
+                                small = true,
+                                modifier = Modifier.selectable(
+                                    selected = editingG == second,
+                                    role = Role.Tab,
+                                    onClick = {
+                                        if (editingG != second) {
+                                            editingG = second
+                                            calc = calc.copy(
+                                                expression = if (second) calc.plotExpression2 else calc.plotExpression,
+                                                lastExpression = "",
+                                                justEvaluated = false
+                                            )
+                                        }
+                                    }
+                                )
+                            )
+                        }
+                        Spacer(Modifier.weight(1f))
+                    }
                     if (mode == MODE_SCIENTIFIC || mode == MODE_GRAPH) {
                         // Mostra a unidade em uso; tocar alterna.
                         val desc = stringResource(if (degrees) R.string.degrees_desc else R.string.radians_desc)
@@ -369,6 +402,8 @@ fun BeautifulCalculatorScreen(
                 when (mode) {
                     MODE_MATRIX -> MatrixScreen(colors, decimalSep, contentModifier)
                     MODE_CONVERTER -> ConverterScreen(colors, decimalSep, contentModifier)
+                    MODE_STATS -> StatsScreen(colors, decimalSep, contentModifier)
+                    MODE_FINANCE -> FinanceScreen(colors, decimalSep, contentModifier)
                     else -> CalculatorArea(
                         mode = mode,
                         calc = calc,
@@ -380,6 +415,7 @@ fun BeautifulCalculatorScreen(
                         decimalSep = decimalSep,
                         onKey = onKey,
                         onPaste = { text -> calc = calc.paste(text) },
+                        editingG = mode == MODE_GRAPH && editingG,
                         onPickHistory = { entry ->
                             calc = calc.copy(expression = entry.expression, lastExpression = "", justEvaluated = false)
                             showHistory = false
@@ -472,7 +508,8 @@ private fun CalculatorArea(
     onPaste: (String) -> Unit,
     onPickHistory: (HistoryEntry) -> Unit,
     onClearHistory: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    editingG: Boolean = false,
 ) {
     BoxWithConstraints(modifier) {
         val extraRows = when (mode) {
@@ -494,7 +531,7 @@ private fun CalculatorArea(
             val rows = if (extraRows.isEmpty()) BASIC_ROWS else sideBySideRows(extraRows, BASIC_ROWS)
             Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                 CalcScreenArea(
-                    mode, calc, degrees, colors, decimalSep, onPaste,
+                    mode, calc, degrees, colors, decimalSep, onPaste, editingG,
                     Modifier
                         .weight(1f)
                         .fillMaxHeight()
@@ -550,7 +587,7 @@ private fun CalculatorArea(
 
             Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(spacing)) {
                 CalcScreenArea(
-                    mode, calc, degrees, colors, decimalSep, onPaste,
+                    mode, calc, degrees, colors, decimalSep, onPaste, editingG,
                     Modifier
                         .weight(1f)
                         .fillMaxWidth()
@@ -603,12 +640,14 @@ private fun CalcScreenArea(
     colors: CalcColors,
     decimalSep: Char,
     onPaste: (String) -> Unit,
+    editingG: Boolean,
     modifier: Modifier = Modifier
 ) {
     if (mode == MODE_GRAPH) {
         Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(12.dp)) {
             GraphView(
                 plotExpression = calc.plotExpression,
+                plotExpression2 = calc.plotExpression2,
                 degrees = degrees,
                 colors = colors,
                 decimalSep = decimalSep,
@@ -617,7 +656,7 @@ private fun CalcScreenArea(
             Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterEnd) {
                 val graphText = prettyExpression(calc.expression, decimalSep).ifEmpty { "..." }
                 Text(
-                    text = "f(x) = $graphText",
+                    text = (if (editingG) "g(x) = " else "f(x) = ") + graphText,
                     maxLines = 1,
                     fontSize = when {
                         graphText.length <= 18 -> 24.sp
@@ -625,7 +664,7 @@ private fun CalcScreenArea(
                         else -> 12.sp
                     },
                     fontWeight = FontWeight.Light,
-                    color = colors.text
+                    color = if (editingG) SecondCurveColor else colors.text
                 )
             }
         }

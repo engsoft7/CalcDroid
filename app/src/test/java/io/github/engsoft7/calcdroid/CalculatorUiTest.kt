@@ -13,6 +13,7 @@ import androidx.compose.ui.test.longClick
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTextReplacement
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import io.github.engsoft7.calcdroid.ui.theme.CalcDroidTheme
@@ -182,6 +183,62 @@ class CalculatorUiTest {
     }
 
     @Test
+    fun graficoComDuasFuncoesERaizes() {
+        start(MODE_GRAPH)
+        keys("Variable x", "Equals")
+        rule.onNodeWithText("g(x)").performClick()
+        keys("1", "Equals")
+        rule.onNodeWithText("g(x) = 1").assertIsDisplayed()
+        rule.onNodeWithContentDescription("g(x) = 1.", substring = true).assertIsDisplayed()
+        rule.onNodeWithContentDescription("Zeros of f: 0.", substring = true).assertIsDisplayed()
+        // Voltar para a f(x) traz a expressão dela ao visor.
+        rule.onNodeWithText("f(x)").performClick()
+        rule.onNodeWithText("f(x) = x").assertIsDisplayed()
+    }
+
+    @Test
+    fun graficoComIntervaloEscolhido() {
+        start(MODE_GRAPH)
+        keys("Variable x", "Equals")
+        rule.onNodeWithText("Range").performClick()
+        rule.onNodeWithContentDescription("x from").performTextReplacement("0")
+        rule.onNodeWithContentDescription("to").performTextReplacement("5")
+        rule.onNodeWithText("OK").performClick()
+        rule.onNodeWithText("5 (degrees)").assertIsDisplayed()
+    }
+
+    @Test
+    fun modoEstatistica() {
+        start()
+        rule.onNodeWithText("Statistics").performScrollTo().performClick()
+        rule.onNodeWithContentDescription("Values (x)").performTextInput("2 4 4 4 5 5 7 9")
+        rule.onNodeWithText("Mean").assertIsDisplayed()
+        rule.onNodeWithText("4.5").assertIsDisplayed()   // mediana
+        rule.onNodeWithText("40").assertIsDisplayed()    // soma
+        rule.onNodeWithContentDescription("y values (optional, for regression)").performTextInput("1 2 3 4 5 6 7 8")
+        rule.onNodeWithText("Linear regression").performScrollTo().assertIsDisplayed()
+    }
+
+    @Test
+    fun modoFinanceiroParcelas() {
+        start(MODE_FINANCE)
+        rule.onNodeWithText("Installments").performClick()
+        rule.onNodeWithContentDescription("Loan amount").performTextInput("10000")
+        rule.onNodeWithContentDescription("Interest rate (% per period)").performTextInput("2")
+        rule.onNodeWithContentDescription("Number of installments").performTextInput("12")
+        rule.onNodeWithText("945.60").performScrollTo().assertIsDisplayed()
+    }
+
+    @Test
+    fun modoFinanceiroJurosCompostos() {
+        start(MODE_FINANCE)
+        rule.onNodeWithContentDescription("Initial amount").performTextInput("1000")
+        rule.onNodeWithContentDescription("Interest rate (% per period)").performTextInput("1")
+        rule.onNodeWithContentDescription("Periods").performTextInput("10")
+        rule.onNodeWithText("1,104.62").performScrollTo().assertIsDisplayed()
+    }
+
+    @Test
     fun conversorDeUnidades() {
         start(MODE_CONVERTER)
         // Padrão: 1 km em milhas.
@@ -272,5 +329,22 @@ class MainActivityUiTest {
         // Não volta a pedir.
         rule.onNodeWithContentDescription("Equals").performClick()
         rule.onNodeWithText("Enjoying CalcDroid?").assertDoesNotExist()
+    }
+}
+
+/** Widget: usa a mesma lógica do app e mostra a prévia do resultado. */
+@RunWith(AndroidJUnit4::class)
+@Config(qualifiers = "en")
+class CalcWidgetTest {
+    @Test
+    fun contaNoWidget() {
+        val context = androidx.test.core.app.ApplicationProvider.getApplicationContext<android.content.Context>()
+        var state = CalcState()
+        listOf("1", "2", "*", "3").forEach { state = state.press(it) }
+        org.junit.Assert.assertEquals("12×3" to "= 36", CalcWidget.displayTexts(context, state))
+        state = state.press("=")
+        CalcWidget.save(context, state)
+        val loaded = CalcWidget.load(context)
+        org.junit.Assert.assertEquals("36" to "12×3 =", CalcWidget.displayTexts(context, loaded))
     }
 }

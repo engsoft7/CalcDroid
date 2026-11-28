@@ -14,8 +14,9 @@ data class CalcState(
     // Após "=", um dígito ou função começa um cálculo novo; um operador
     // continua a conta em cima do resultado exibido.
     val justEvaluated: Boolean = false,
-    // Expressão desenhada no modo gráfico.
+    // Expressões desenhadas no modo gráfico: f(x) e a segunda, g(x).
     val plotExpression: String = "",
+    val plotExpression2: String = "",
     // Valor guardado pelas teclas de memória (M+, M−, MR, MC).
     val memory: Double = 0.0,
 )
@@ -38,12 +39,18 @@ private val POSTFIX_KEYS = setOf("%", "!", ")", "x²", "x⁻¹", "mod")
 // Expoente que ficou pendurado ao apagar um resultado como "1.5E+12".
 private val DANGLING_EXPONENT = Regex("E[+-]?$")
 
-fun CalcState.press(key: String, graphMode: Boolean = false, degrees: Boolean = true): CalcState =
+fun CalcState.press(
+    key: String,
+    graphMode: Boolean = false,
+    degrees: Boolean = true,
+    // No gráfico, "=" desenha a g(x) em vez da f(x).
+    secondPlot: Boolean = false,
+): CalcState =
     when (key) {
         // Limpar não apaga a memória, como nas calculadoras de verdade.
         "C" -> CalcState(memory = memory)
         "⌫" -> backspace()
-        "=" -> evaluate(graphMode, degrees)
+        "=" -> evaluate(graphMode, degrees, secondPlot)
         "MC" -> copy(memory = 0.0)
         "M+", "M-" -> {
             val value = currentValue(degrees)
@@ -94,10 +101,17 @@ private fun CalcState.backspace(): CalcState {
     return base.copy(expression = trimmed.replace(DANGLING_EXPONENT, ""))
 }
 
-private fun CalcState.evaluate(graphMode: Boolean, degrees: Boolean): CalcState {
+private fun CalcState.evaluate(graphMode: Boolean, degrees: Boolean, secondPlot: Boolean = false): CalcState {
+    // No gráfico, "=" com o visor vazio apaga a função.
+    if (graphMode && expression.isEmpty()) {
+        return if (secondPlot) copy(plotExpression2 = "") else copy(plotExpression = "")
+    }
     if (expression.isEmpty() || expression == ERROR_TEXT) return this
     val closed = autoCloseParentheses(expression)
-    if (graphMode) return copy(expression = closed, plotExpression = closed)
+    if (graphMode) {
+        return if (secondPlot) copy(expression = closed, plotExpression2 = closed)
+        else copy(expression = closed, plotExpression = closed)
+    }
     val result = try {
         formatNumber(ExpressionEvaluator.evaluate(closed, degrees = degrees))
     } catch (e: Exception) {
