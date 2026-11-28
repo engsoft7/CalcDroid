@@ -168,9 +168,9 @@ sido enviado à mão — o que já foi feito.
    (a Play recusa um `versionCode` repetido).
 2. Escreva as novidades em
    [`play-store/whatsnew/whatsnew-pt-BR`](play-store/whatsnew/whatsnew-pt-BR)
-   (até 500 caracteres). O nome do arquivo segue o idioma da ficha da loja;
-   se o idioma padrão no Play Console for outro, renomeie (ex.:
-   `whatsnew-en-US`).
+   e [`whatsnew-en-US`](play-store/whatsnew/whatsnew-en-US) (até 500
+   caracteres cada). Cada arquivo precisa ter um idioma correspondente na
+   ficha da loja.
 3. Faça merge no `master`. O workflow
    [`auto-release.yml`](.github/workflows/auto-release.yml) percebe o
    `versionName` novo (sem tag ainda) e dispara o *Release* com a tag
